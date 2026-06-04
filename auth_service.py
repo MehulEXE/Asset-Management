@@ -3,6 +3,7 @@ ITAM Auth Service — Supabase Implementation
 =============================================
 """
 
+import load_env
 import logging
 import os
 from supabase import create_client, Client
@@ -10,9 +11,9 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger("ITAM_AuthService")
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://wvxvwzjqhxymawddawey.supabase.co")
-SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "sb_publishable_hgSKRhdyHew0U1c6EwI4Xw_S_5xbgw5")
-SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "sb_secret_Weao0Y0-di-DaQAGQczaGg_dlrwdd3M")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 
 _anon_client: Client | None = None
 _admin_client: Client | None = None
@@ -21,6 +22,8 @@ _admin_client: Client | None = None
 def _get_anon() -> Client:
     global _anon_client
     if _anon_client is None:
+        if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+            raise RuntimeError("SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env or environment variables.")
         _anon_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
     return _anon_client
 
@@ -28,10 +31,10 @@ def _get_anon() -> Client:
 def _get_admin() -> Client:
     global _admin_client
     if _admin_client is None:
-        if not SUPABASE_SERVICE_KEY:
+        if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
             raise RuntimeError(
-                "SUPABASE_SERVICE_KEY environment variable not set. "
-                "Get it from Supabase Dashboard \u2192 Project Settings \u2192 API \u2192 service_role key."
+                "SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables not set. "
+                "Ensure they are configured in the .env file."
             )
         _admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     return _admin_client

@@ -1,3 +1,4 @@
+import load_env
 import http.server
 import json
 import logging
@@ -17,14 +18,16 @@ _screen_sharer_agents: dict[str, dict] = {}
 
 PORT = int(os.environ.get("PORT", 8000))
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://wvxvwzjqhxymawddawey.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "sb_secret_Weao0Y0-di-DaQAGQczaGg_dlrwdd3M")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 _supabase: Client | None = None
 
 def get_db() -> Client:
     global _supabase
     if _supabase is None:
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in .env or environment variables.")
         _supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
     return _supabase
 
