@@ -7,14 +7,19 @@ urllib3>=2.2.1
 # Telemetry data collection (CPU, Memory, Disk usage metrics)
 psutil>=5.9.8
 
-# Windows Management Instrumentation (WMI) queries for hardware specs
-WMI>=1.5.1
-
-# Native Windows integration (Services, event logs, COM components, and DPAPI)
-pywin32>=306
+# Windows-only libraries (Agent)
+WMI>=1.5.1; sys_platform == 'win32'
+pywin32>=306; sys_platform == 'win32'
 
 # Security and compilation helper libraries
 cryptography>=42.0.5
+
+# Supabase database/auth integration (Backend)
+supabase>=2.30.1
+
+# Screen capture (Agent)
+mss>=10.2.0
+pillow>=10.0.0
 
 # Compilation tool for building standalone binaries (AssetAgentService.exe & AssetAgentSetup.exe)
 pyinstaller>=6.5.0
