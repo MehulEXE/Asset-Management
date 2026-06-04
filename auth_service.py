@@ -3,7 +3,6 @@ ITAM Auth Service — Supabase Implementation
 =============================================
 """
 
-import load_env
 import logging
 import os
 from supabase import create_client, Client
