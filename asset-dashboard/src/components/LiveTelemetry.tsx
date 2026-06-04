@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Monitor, MonitorPlay, Loader2, Wifi } from 'lucide-react';
+import { apiUrl } from '../services/apiConfig';
 
 interface AllocatedDevice {
   id: string;
   asset_id: string;
   hostname: string;
   category: string;
+  status: string;
   employee_name?: string;
   employee_email?: string;
   last_seen?: string;
@@ -25,7 +27,7 @@ export function LiveTelemetry({ onWatchScreen }: LiveTelemetryProps) {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const res = await fetch('http://localhost:8000/api/v1/assets');
+        const res = await fetch(apiUrl('/api/v1/assets'));
         if (res.ok) {
           const all: AllocatedDevice[] = await res.json();
           const filtered = all.filter(a =>

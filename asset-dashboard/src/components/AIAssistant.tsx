@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Bot, Send, Sparkles, Terminal, FileSpreadsheet, ShieldAlert, Database } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000';
+import API_BASE from '../services/apiConfig';
 
 interface QueryResult {
   results: Record<string, unknown>[];

@@ -17,6 +17,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import API_BASE from '../services/apiConfig';
+
+const API_BASE_URL = API_BASE;
 
 interface Agent {
   id: string;
@@ -113,7 +116,7 @@ export const ActiveAgents: React.FC = () => {
   // Fetch Discovered Agents
   const fetchAgents = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/agents');
+      const res = await fetch(`${API_BASE_URL}/api/agents`);
       if (res.ok) {
         const data = await res.json();
         setAgents(data);
@@ -126,7 +129,7 @@ export const ActiveAgents: React.FC = () => {
   const handleTriggerImmediateScan = async () => {
     setIsScanning(true);
     try {
-      const res = await fetch('http://localhost:8000/api/agent/scan', { 
+      const res = await fetch(`${API_BASE_URL}/api/agent/scan`, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -147,7 +150,7 @@ export const ActiveAgents: React.FC = () => {
   const handleRestartAgent = async () => {
     setIsRestarting(true);
     try {
-      const res = await fetch('http://localhost:8000/api/agent/restart', { 
+      const res = await fetch(`${API_BASE_URL}/api/agent/restart`, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -294,7 +297,7 @@ export const ActiveAgents: React.FC = () => {
     };
 
     try {
-      const res = await fetch('http://localhost:8000/api/agents/register', {
+      const res = await fetch(`${API_BASE_URL}/api/agents/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: jsonSafeStringify(payload)
@@ -320,7 +323,7 @@ export const ActiveAgents: React.FC = () => {
     if (!newGroupName) return;
 
     try {
-      const res = await fetch('http://localhost:8000/api/groups/create', {
+      const res = await fetch(`${API_BASE_URL}/api/groups/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newGroupName, group_type: newGroupType })
@@ -341,7 +344,7 @@ export const ActiveAgents: React.FC = () => {
   // View registered device details drawer
   const openDeviceDetails = async (agent: Agent) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/assets/${agent.id}`);
+      const res = await fetch(`${API_BASE_URL}/api/assets/${agent.id}`);
       if (res.ok) {
         const data = await res.json();
         setDetailDrawerAgent(data);
@@ -372,7 +375,7 @@ export const ActiveAgents: React.FC = () => {
         const agentObj = agents.find(a => a.id === agentId);
         if (!agentObj) continue;
 
-        await fetch(`http://localhost:8000/api/agents/${agentObj.agent_id}/assign`, {
+        await fetch(`${API_BASE_URL}/api/agents/${agentObj.agent_id}/assign`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1007,7 +1010,7 @@ export const ActiveAgents: React.FC = () => {
                         onClick={async () => {
                           if (!confirm(`Deallocate ${detailDrawerAgent.hostname} from ${detailDrawerAgent.employee_name}?`)) return;
                           try {
-                            const res = await fetch(`http://localhost:8000/api/assets/${detailDrawerAgent.id}/deallocate`, { method: 'PUT' });
+                            const res = await fetch(`${API_BASE_URL}/api/assets/${detailDrawerAgent.id}/deallocate`, { method: 'PUT' });
                             if (res.ok) {
                               alert(`Device ${detailDrawerAgent.hostname} deallocated successfully`);
                               setDetailDrawerAgent(null);

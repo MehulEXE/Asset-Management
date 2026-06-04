@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Edit2, Trash2, Eye, ShieldAlert, MonitorUp, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { RequestAssetModal } from './RequestAssetModal';
+import { apiUrl } from '../services/apiConfig';
 
 interface Asset {
   id: string;
@@ -466,7 +467,7 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
           onClose={() => setShowRequestModal(false)}
           onSubmit={async (data) => {
             if (!token) throw new Error('Not authenticated');
-            const res = await fetch('http://localhost:8000/api/asset-requests', {
+            const res = await fetch(apiUrl('/api/asset-requests'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: JSON.stringify(data),

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Laptop, HardDrive, ShieldCheck, FileCheck, Clock, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { apiUrl } from '../services/apiConfig';
 
 interface Asset {
   id: string;
@@ -24,7 +25,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ assets, setActiveTab }) =>
 
   useEffect(() => {
     if (!token) return;
-    fetch('http://localhost:8000/api/asset-requests', {
+    fetch(apiUrl('/api/asset-requests'), {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())

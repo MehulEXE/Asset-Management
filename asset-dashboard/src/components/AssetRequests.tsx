@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Check, X, Clock, CheckCircle, XCircle, Loader2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { RequestAssetModal } from './RequestAssetModal';
+import { apiUrl } from '../services/apiConfig';
 
 interface AssetRequest {
   id: string;
@@ -26,7 +27,7 @@ export function AssetRequests() {
   const fetchRequests = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch('http://localhost:8000/api/asset-requests', {
+      const res = await fetch(apiUrl('/api/asset-requests'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -47,7 +48,7 @@ export function AssetRequests() {
 
   const handleSubmitRequest = async (data: { request_type: string; form_data: any }) => {
     if (!token) throw new Error('Not authenticated');
-    const res = await fetch('http://localhost:8000/api/asset-requests', {
+    const res = await fetch(apiUrl('/api/asset-requests'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
@@ -63,7 +64,7 @@ export function AssetRequests() {
     if (!token) return;
     setActionLoading(id);
     try {
-      await fetch(`http://localhost:8000/api/asset-requests/${id}/approve`, {
+      await fetch(apiUrl(`/api/asset-requests/${id}/approve`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: '{}',
@@ -81,7 +82,7 @@ export function AssetRequests() {
     const notes = prompt('Rejection reason (optional):');
     setActionLoading(id);
     try {
-      await fetch(`http://localhost:8000/api/asset-requests/${id}/reject`, {
+      await fetch(apiUrl(`/api/asset-requests/${id}/reject`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ notes: notes || '' }),

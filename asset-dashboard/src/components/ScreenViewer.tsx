@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Loader2 } from 'lucide-react';
+import { apiUrl } from '../services/apiConfig';
 
 interface ScreenViewerProps {
   agentId: string;
@@ -19,7 +20,7 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
 
     const pollFrame = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/screen/frame/${encodeURIComponent(agentId)}`);
+        const res = await fetch(apiUrl(`/api/screen/frame/${encodeURIComponent(agentId)}`));
         if (!res.ok) {
           if (activeRef.current) setError(true);
           return;
@@ -52,7 +53,7 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
 
   const handleStop = async () => {
     try {
-      await fetch(`http://localhost:8000/api/screen/${encodeURIComponent(agentId)}/stop`, { method: 'POST' });
+      await fetch(apiUrl(`/api/screen/${encodeURIComponent(agentId)}/stop`), { method: 'POST' });
     } catch {
       // silent
     }

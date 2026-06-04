@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { apiUrl } from '../services/apiConfig';
 
 interface Notification {
   id: string;
@@ -21,7 +22,7 @@ export function NotificationBell() {
   const fetchNotifs = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch('http://localhost:8000/api/notifications', {
+      const res = await fetch(apiUrl('/api/notifications'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -52,7 +53,7 @@ export function NotificationBell() {
 
   const handleMarkRead = async (id: string) => {
     if (!token) return;
-    await fetch(`http://localhost:8000/api/notifications/${id}/read`, {
+    await fetch(apiUrl(`/api/notifications/${id}/read`), {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}` },
     });

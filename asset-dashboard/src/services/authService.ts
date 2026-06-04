@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { apiUrl } from './apiConfig';
 
 export interface User {
   name: string;
@@ -59,7 +60,7 @@ export const authService = {
   // ---- Admin Operations (via backend) ----
 
   async listUsers(token: string): Promise<UserWithDevices[]> {
-    const res = await fetch('http://localhost:8000/api/admin/users', {
+    const res = await fetch(apiUrl('/api/admin/users'), {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
@@ -72,7 +73,7 @@ export const authService = {
 
   async setUserRole(token: string, email: string, role: 'admin' | 'user'): Promise<User> {
     const res = await fetch(
-      `http://localhost:8000/api/admin/users/${encodeURIComponent(email)}/role`,
+      apiUrl(`/api/admin/users/${encodeURIComponent(email)}/role`),
       {
         method: 'PUT',
         headers: {

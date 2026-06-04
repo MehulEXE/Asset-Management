@@ -29,6 +29,7 @@ import { AssetRequests } from './components/AssetRequests';
 import { NotificationBell } from './components/NotificationBell';
 import { LoginScreen } from './components/LoginScreen';
 import { useAuth } from './contexts/AuthContext';
+import { apiUrl } from './services/apiConfig';
 
 // Main Interface Definitions
 interface Asset {
@@ -92,10 +93,13 @@ export default function App() {
     const fetchData = async () => {
       try {
         const [assetsRes, metricsRes, historyRes, purchasesRes] = await Promise.all([
-          fetch("http://localhost:8000/api/v1/assets"),
-          fetch("http://localhost:8000/api/v1/metrics"),
-          fetch("http://localhost:8000/api/v1/history"),
-          fetch("http://localhost:8000/api/purchases"),
+          fetch(apiUrl("/api/v1/assets")),
+
+          fetch(apiUrl("/api/v1/metrics")),
+
+          fetch(apiUrl("/api/v1/history")),
+
+          fetch(apiUrl("/api/purchases")),
         ]);
         if (assetsRes.ok) setAssets(await assetsRes.json());
         if (metricsRes.ok) setMetrics(await metricsRes.json());
@@ -114,7 +118,7 @@ export default function App() {
   // Screen Share Actions
   const handleWatchScreen = async (agentId: string, hostname: string) => {
     try {
-      await fetch(`http://localhost:8000/api/screen/${encodeURIComponent(agentId)}/start`, {
+      await fetch(apiUrl(`/api/screen/${encodeURIComponent(agentId)}/start`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hostname }),
@@ -166,7 +170,7 @@ export default function App() {
     setAssets(assets.map(a => a.id === updatedAsset.id ? updatedAsset : a));
 
     try {
-      await fetch(`http://localhost:8000/api/assets/${encodeURIComponent(updatedAsset.id)}`, {
+      await fetch(apiUrl(`/api/assets/${encodeURIComponent(updatedAsset.id)}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedAsset),
@@ -194,7 +198,7 @@ export default function App() {
     setMetrics(metrics.filter(m => m.id !== id));
     
     try {
-      await fetch(`http://localhost:8000/api/assets/${id}`, {
+      await fetch(apiUrl(`/api/assets/${id}`), {
         method: 'DELETE'
       });
     } catch (err) {

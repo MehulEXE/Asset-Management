@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, ShieldCheck, UserCheck, Plus, Check, Monitor, Apple, Terminal, Download } from 'lucide-react';
+import { apiUrl } from '../services/apiConfig';
 
 interface ApiKey {
   id: string;
@@ -65,7 +66,7 @@ export const SecuritySettings: React.FC = () => {
               </p>
             </div>
             <a 
-              href="http://localhost:8000/api/v1/download/windows" 
+              href={apiUrl('/api/v1/download/windows')} 
               className="btn btn-primary" 
               style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none' }}
             >
@@ -87,7 +88,7 @@ export const SecuritySettings: React.FC = () => {
               </p>
             </div>
             <a 
-              href="http://localhost:8000/api/v1/download/mac" 
+              href={apiUrl('/api/v1/download/mac')} 
               className="btn btn-secondary" 
               style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none' }}
             >
@@ -109,7 +110,7 @@ export const SecuritySettings: React.FC = () => {
               </p>
             </div>
             <a 
-              href="http://localhost:8000/api/v1/download/linux" 
+              href={apiUrl('/api/v1/download/linux')} 
               className="btn btn-secondary" 
               style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', borderColor: 'var(--success)', color: 'var(--success)' }}
             >
