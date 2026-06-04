@@ -1,0 +1,11 @@
+{
+    "api_url": "http://localhost:8000",
+    "agent_token": "key_prod_win_agent_d43f721a",
+    "checkin_interval_hours": 24,
+    "heartbeat_interval_minutes": 30,
+    "agent_id": "AGENT-WIN-608684",
+    "db_path": "C:\\ProgramData\\AssetAgent\\storage.db",
+    "log_dir": "C:\\ProgramData\\AssetAgent\\logs",
+    "verify_certs": false,
+    "encrypted": false
+}

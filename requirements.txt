@@ -1,0 +1,20 @@
+# ITAM Asset Discovery Agent & Server Dependencies
+
+# HTTP client for communication between Agent and API Server
+requests>=2.31.0
+urllib3>=2.2.1
+
+# Telemetry data collection (CPU, Memory, Disk usage metrics)
+psutil>=5.9.8
+
+# Windows Management Instrumentation (WMI) queries for hardware specs
+WMI>=1.5.1
+
+# Native Windows integration (Services, event logs, COM components, and DPAPI)
+pywin32>=306
+
+# Security and compilation helper libraries
+cryptography>=42.0.5
+
+# Compilation tool for building standalone binaries (AssetAgentService.exe & AssetAgentSetup.exe)
+pyinstaller>=6.5.0
