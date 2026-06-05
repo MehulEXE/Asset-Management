@@ -213,10 +213,31 @@ export function LoginScreen() {
           )}
         </div>
 
-        {/* Default credentials hint (dev only) */}
+        {/* Quick login buttons */}
         {mode === 'login' && (
-          <div className="login-hint">
-            <p><strong>Default Admin:</strong> admin@itam.local / admin123</p>
+          <div className="login-quick-buttons">
+            <button
+              type="button"
+              className="login-quick-btn login-quick-btn-admin"
+              onClick={() => {
+                setEmail('admin@gmail.com');
+                setPassword('admin123');
+              }}
+            >
+              <ShieldCheck size={15} />
+              Admin Login
+            </button>
+            <button
+              type="button"
+              className="login-quick-btn login-quick-btn-user"
+              onClick={() => {
+                setEmail('test@gmail.com');
+                setPassword('test123');
+              }}
+            >
+              <Laptop size={15} />
+              Test User
+            </button>
           </div>
         )}
       </div>
