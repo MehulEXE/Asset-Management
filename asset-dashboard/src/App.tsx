@@ -11,7 +11,9 @@ import {
   Moon,
   Users,
   LogOut,
-  FileCheck
+  FileCheck,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
 // Components
@@ -62,6 +64,7 @@ interface Asset {
 export default function App() {
   const { isAuthenticated, isLoading, logout, currentUser, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState<string>('dark');
 
   // Unified State
@@ -289,84 +292,87 @@ export default function App() {
   return (
     <div className="app-container">
       {/* 1. SIDEBAR */}
-      <aside className="sidebar">
+      <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
         <div className="sidebar-brand">
           <Laptop size={24} />
-          <span>ITAM Portal v1.0</span>
+          <span className="brand-text">ITAM Portal v1.0</span>
+          <button className="compact-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
         </div>
 
         <ul className="sidebar-menu">
           <li>
             <a className={`menu-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
-              <LayoutDashboard /> Dashboard
+              <LayoutDashboard /> <span className="menu-label">Dashboard</span>
             </a>
           </li>
           <li>
             <a className={`menu-item ${activeTab === 'assets' ? 'active' : ''}`} onClick={() => setActiveTab('assets')}>
-              <Laptop /> Asset Inventory
+              <Laptop /> <span className="menu-label">Asset Inventory</span>
             </a>
           </li>
           <li>
             <a className={`menu-item ${activeTab === 'active_agents' ? 'active' : ''}`} onClick={() => setActiveTab('active_agents')}>
-              <Activity /> Active Agents
+              <Activity /> <span className="menu-label">Active Agents</span>
             </a>
           </li>
           <li>
             <a className={`menu-item ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
-              <FileCheck /> {isAdmin ? 'Pending Approvals' : 'My Requests'}
+              <FileCheck /> <span className="menu-label">{isAdmin ? 'Pending Approvals' : 'My Requests'}</span>
             </a>
           </li>
           {isAdmin && (
             <li>
               <a className={`menu-item ${activeTab === 'purchases' ? 'active' : ''}`} onClick={() => setActiveTab('purchases')}>
-                <IndianRupee /> Purchases & Costs
+                <IndianRupee /> <span className="menu-label">Purchases & Costs</span>
               </a>
             </li>
           )}
           {isAdmin && (
             <li>
               <a className={`menu-item ${activeTab === 'allocations' ? 'active' : ''}`} onClick={() => setActiveTab('allocations')}>
-                <UserCheck /> Allocation Logs
+                <UserCheck /> <span className="menu-label">Allocation Logs</span>
               </a>
             </li>
           )}
           {isAdmin && (
             <li>
               <a className={`menu-item ${activeTab === 'monitoring' ? 'active' : ''}`} onClick={() => setActiveTab('monitoring')}>
-                <Activity /> Live Telemetry
+                <Activity /> <span className="menu-label">Live Telemetry</span>
               </a>
             </li>
           )}
           <li>
             <a className={`menu-item ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')}>
-              <Bot /> ITAM AI Assistant
+              <Bot /> <span className="menu-label">ITAM AI Assistant</span>
             </a>
           </li>
           {isAdmin && (
             <li>
               <a className={`menu-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-                <Users /> User Management
+                <Users /> <span className="menu-label">User Management</span>
               </a>
             </li>
           )}
           {isAdmin && (
             <li>
               <a className={`menu-item ${activeTab === 'security' ? 'active' : ''}`} onClick={() => setActiveTab('security')}>
-                <ShieldAlert /> Security & API
+                <ShieldAlert /> <span className="menu-label">Security & API</span>
               </a>
             </li>
           )}
         </ul>
 
         <div className="sidebar-footer">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0 4px' }}>
+          <div className="sidebar-footer-content">
+            <div className="user-info" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0 4px' }}>
               <strong>{currentUser?.name}</strong>
               <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{currentUser?.email}</span>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="footer-actions" style={{ display: 'flex', gap: '8px' }}>
               <button className="btn btn-secondary" style={{ flex: 1, padding: '8px 12px', fontSize: '0.85rem' }} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                {theme === 'dark' ? <><Sun size={14} style={{ marginRight: '6px' }} /> Light</> : <><Moon size={14} style={{ marginRight: '6px' }} /> Dark</>}
+                {theme === 'dark' ? <><Sun size={14} style={{ marginRight: '6px' }} /> <span className="btn-label">Light</span></> : <><Moon size={14} style={{ marginRight: '6px' }} /> <span className="btn-label">Dark</span></>}
               </button>
               <button className="btn btn-secondary" style={{ padding: '8px 12px', fontSize: '0.85rem', color: 'var(--danger)' }} onClick={logout} title="Logout">
                 <LogOut size={14} />

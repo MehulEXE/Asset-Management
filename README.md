@@ -109,7 +109,7 @@ D:\ASSETMANAGEMENT\
     ├── service/
     │   └── windows_service.py # Windows Service wrapper + management menu
     └── dist/
-        └── AssetAgent.exe     # Standalone agent executable (PyInstaller)
+        └── AssetAgentService.exe     # Standalone agent executable (PyInstaller)
 ```
 
 ## Getting Started
@@ -169,7 +169,7 @@ There are two ways to run the agent:
 #### Option A: Standalone EXE (recommended for end-users)
 
 On the target machine (Windows 10/11):
-1. Copy `asset-agent/dist/AssetAgent.exe` to the machine
+1. Copy `asset-agent/dist/AssetAgentService.exe` (the main agent) and optionally `asset-agent/dist/AssetAgentSetup.exe` (installer) to the machine
 2. Right-click → **Run as Administrator**
 3. The menu appears:
    ```
@@ -180,10 +180,8 @@ On the target machine (Windows 10/11):
      5) Run Agent in Console  (for testing)
      6) Exit
    ```
-4. Select **1** to install as a Windows service with auto-start
-5. When prompted, enter the server's IP address (e.g., `192.168.1.100`)
-
-The agent will auto-generate an ID (`AGENT-WIN-XXXXXX`), collect inventory, and appear in the Active Agents tab within 30 seconds.
+4. Select **1** to install the service with auto-start
+5. When prompted, enter the server's IP address (e.g., `192.168.1.100`) auto-generate an ID (`AGENT-WIN-XXXXXX`), collect inventory, and appear in the Active Agents tab within 30 seconds.
 
 #### Option B: Python source (for development)
 
@@ -290,11 +288,11 @@ Follow these steps on each machine that should report to the central ITAM server
 - Verify the API server is running (`http://server-ip:8000`)
 
 ### Step 2: Deploy the Agent EXE
-- Copy `asset-agent/dist/AssetAgent.exe` to the target machine (USB, network share, or download)
+- Copy `asset-agent/dist/AssetAgentService.exe` to the target machine (USB, network share, or download)
 - Place it in a permanent location like `C:\Program Files\AssetAgent\`
 
 ### Step 3: Install the Service
-- Right-click `AssetAgent.exe` → **Run as Administrator**
+- Right-click `AssetAgentService.exe` → **Run as Administrator**
 - The interactive menu appears
 - Select option **1** (Install & Start Service)
 - Enter the server's IP address when prompted (or accept `localhost:8000` if running locally)
@@ -314,8 +312,8 @@ Follow these steps on each machine that should report to the central ITAM server
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
 | Agent shows **Offline** | API server unreachable | Check server IP, firewall, and agent's `config.json` `api_url` |
-| "ModuleNotFoundError" when running EXE | Corrupted build | Re-download `AssetAgent.exe` from the server's dist folder |
-| Screen sharing shows "Device is offline" | Agent is running old version without screen capture | Update agent to the latest `AssetAgent.exe` |
+| "ModuleNotFoundError" when running EXE | Corrupted build | Re-download `AssetAgentService.exe` from the server's dist folder |
+| Screen sharing shows "Device is offline" | Agent is running old version without screen capture | Update agent to the latest `AssetAgentService.exe` |
 | Agent not appearing in list | Network connectivity issue | Check `agent.log` in `C:\ProgramData\AssetAgent\logs\` |
 | "Access Denied" on install | Not running as Administrator | Right-click → Run as Administrator |
 
@@ -338,10 +336,10 @@ The schema is defined in `supabase_migration.sql`. Key tables:
 
 ```powershell
 cd asset-agent
-pyinstaller --onefile --name "AssetAgent" `
+pyinstaller --onefile --name "AssetAgentService" `
   --add-data "config;config" `
   --hidden-import win32timezone --hidden-import plyer.platforms.win.notification `
   "service/windows_service.py"
 ```
 
-Output: `dist/AssetAgent.exe`
+Output: `dist/AssetAgentService.exe`

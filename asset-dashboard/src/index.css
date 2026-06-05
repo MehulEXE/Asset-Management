@@ -164,6 +164,85 @@ h1, h2, h3, h4 {
 }
 
 /* =========================================================================
+   COMPACT SIDEBAR MODE
+   ========================================================================= */
+.compact-toggle {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: var(--transition-smooth);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.compact-toggle:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.sidebar.collapsed {
+  width: 70px;
+  padding: 16px 12px;
+}
+
+.sidebar.collapsed .sidebar-brand {
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.sidebar.collapsed .brand-text {
+  display: none;
+}
+
+.sidebar.collapsed .compact-toggle {
+  margin-left: 0;
+}
+
+.sidebar.collapsed .sidebar-menu {
+  align-items: center;
+}
+
+.sidebar.collapsed .menu-item {
+  justify-content: center;
+  padding: 10px;
+  gap: 0;
+  border-radius: 10px;
+}
+
+.sidebar.collapsed .menu-label {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-footer-content .user-info {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-footer-content .footer-actions {
+  flex-direction: column;
+  align-items: center;
+}
+
+.sidebar.collapsed .sidebar-footer-content .footer-actions .btn-label {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-footer-content .footer-actions .btn {
+  padding: 8px;
+  flex: none;
+}
+
+.sidebar.collapsed + .main-content {
+  margin-left: 70px;
+}
+
+/* =========================================================================
    COMPONENTS & REUSABLE STYLES
    ========================================================================= */
 
