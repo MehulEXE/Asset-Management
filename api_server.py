@@ -143,18 +143,27 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, assets.data if assets else [])
 
         elif path == "/api/agents":
-            agents_data = get_db().table("agents").select("*").order("hostname").execute()
+            user = self._require_auth()
+            if not user:
+                return
+            agents_data = get_db().table("agents").select("*").not_.is_("last_checkin", "null").order("hostname").execute()
             agents = agents_data.data if agents_data else []
-            all_assets = get_db().table("assets").select("asset_id,mac_address,employee_name").execute()
+            all_assets = get_db().table("assets").select("asset_id,mac_address,employee_name,employee_email").execute()
             assets_list = all_assets.data if all_assets else []
             asset_by_agent_id = {a["asset_id"]: a for a in assets_list}
             asset_by_mac = {a["mac_address"]: a for a in assets_list}
+            is_adm = user.get("role") == "admin"
             for agent in agents:
                 linked = asset_by_agent_id.get(agent["agent_id"]) or asset_by_mac.get(agent["mac_address"])
                 if linked:
                     agent["employee_name"] = linked.get("employee_name", "")
+                    agent["employee_email"] = linked.get("employee_email", "")
                 else:
                     agent["employee_name"] = ""
+                    agent["employee_email"] = ""
+            if not is_adm:
+                email = user.get("email", "").lower()
+                agents = [a for a in agents if a.get("employee_email", "").lower() == email]
             self._send_json(200, agents)
 
         elif len(path_parts) == 3 and path_parts[0] == "api" and path_parts[1] == "agents":

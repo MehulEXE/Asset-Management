@@ -49,7 +49,7 @@ interface Group {
 }
 
 export const ActiveAgents: React.FC = () => {
-  const { currentUser, isAdmin } = useAuth();
+  const { currentUser, isAdmin, token } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
@@ -116,7 +116,10 @@ export const ActiveAgents: React.FC = () => {
   // Fetch Discovered Agents
   const fetchAgents = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/agents`);
+      if (!token) return;
+      const res = await fetch(`${API_BASE_URL}/api/agents`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         const data = await res.json();
         setAgents(data);
