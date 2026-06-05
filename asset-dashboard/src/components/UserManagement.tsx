@@ -3,7 +3,11 @@ import { Users, ShieldCheck, User, Search, RefreshCw, Loader2, Laptop } from 'lu
 import { useAuth } from '../contexts/AuthContext';
 import { authService, type UserWithDevices } from '../services/authService';
 
-export function UserManagement() {
+interface UserManagementProps {
+  refreshKey?: number;
+}
+
+export function UserManagement({ refreshKey = 0 }: UserManagementProps) {
   const { token } = useAuth();
 
   const [users, setUsers] = useState<UserWithDevices[]>([]);
@@ -28,7 +32,7 @@ export function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+  }, [fetchUsers, refreshKey]);
 
   // Auto-dismiss notifications
   useEffect(() => {

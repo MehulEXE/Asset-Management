@@ -65,6 +65,7 @@ export default function App() {
   const { isAuthenticated, isLoading, logout, currentUser, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [usersRefreshKey, setUsersRefreshKey] = useState(0);
   const [theme, setTheme] = useState<string>('dark');
 
   // Unified State
@@ -247,6 +248,8 @@ export default function App() {
       changed_by: 'Admin',
       created_at: new Date().toISOString().replace('T', ' ').split('.')[0].substring(0, 16)
     }, ...historyLogs]);
+
+    setUsersRefreshKey(k => k + 1);
   };
 
   const handleReturn = (allocationId: string) => {
@@ -275,6 +278,8 @@ export default function App() {
       changed_by: 'Operator',
       created_at: new Date().toISOString().replace('T', ' ').split('.')[0].substring(0, 16)
     }, ...historyLogs]);
+
+    setUsersRefreshKey(k => k + 1);
   };
 
   if (isLoading) {
@@ -425,7 +430,7 @@ export default function App() {
         {activeTab === 'requests' && <AssetRequests />}
         {isAdmin && activeTab === 'purchases' && <Purchases purchases={purchases} />}
         {isAdmin && activeTab === 'allocations' && <Allocation assets={assets} allocations={allocations} historyLogs={historyLogs} onAllocate={handleAllocate} onReturn={handleReturn} />}
-        {isAdmin && activeTab === 'users' && <UserManagement />}
+        {isAdmin && activeTab === 'users' && <UserManagement refreshKey={usersRefreshKey} />}
         {isAdmin && activeTab === 'monitoring' && <LiveTelemetry onWatchScreen={handleWatchScreen} />}
         {activeTab === 'ai' && <AIAssistant />}
         {isAdmin && activeTab === 'security' && <SecuritySettings />}
