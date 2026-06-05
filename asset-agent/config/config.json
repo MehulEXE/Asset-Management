@@ -1,5 +1,5 @@
 {
-    "api_url": "http://localhost:8000",
+    "api_url": "https://asset-management-gciq.onrender.com",
     "agent_token": "key_prod_win_agent_d43f721a",
     "checkin_interval_hours": 24,
     "heartbeat_interval_minutes": 30,

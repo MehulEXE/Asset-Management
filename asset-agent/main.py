@@ -26,8 +26,8 @@ def setup_logging(log_dir: str):
     """Sets up unified logging to file and console."""
     try:
         os.makedirs(log_dir, exist_ok=True)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to create log directory {log_dir}: {e}")
 
     log_path = os.path.join(log_dir, "agent.log")
     
@@ -101,8 +101,8 @@ class AssetAgent:
                 synced_count += 1
             else:
                 self.queue.increment_attempt(item_id)
-                logger.warning(f"Failed to sync cached payload ID {item_id}. Stopping queue sync.")
-                break  # Stop syncing if we hit a network failure again
+                logger.warning(f"Failed to sync cached payload ID {item_id}. Skipping, will retry next cycle.")
+                continue
                 
         return synced_count
 
@@ -206,7 +206,7 @@ class AssetAgent:
 
             return success
         except Exception as e:
-            logger.error(f"Critical error during heartbeat run: {e}")
+            logger.error(f"Critical error during heartbeat run: {e}", exc_info=True)
             return False
 
     def _run_screen_sharer(self):
@@ -232,8 +232,8 @@ class AssetAgent:
                             message="Your IT administrator is viewing your screen \U0001f441",
                             timeout=5,
                         )
-                    except Exception:
-                        pass
+                    except Exception as notify_err:
+                        logger.warning(f"Failed to show notification: {notify_err}")
                     while True:
                         frame = capturer.capture_frame(include_cursor=True)
                         if frame:
@@ -249,8 +249,6 @@ class AssetAgent:
             except Exception as e:
                 logger.error(f"Screen sharer error: {e}")
                 time.sleep(5)
-
-import socket
 
 def main():
     parser = argparse.ArgumentParser(description="Windows Asset Discovery Agent")

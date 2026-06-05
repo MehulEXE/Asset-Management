@@ -31,8 +31,8 @@ def release_wmi_connection():
     if HAS_WMI:
         try:
             pythoncom.CoUninitialize()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to release WMI/COM resources: {e}")
 
 def clean_value(val):
     """Normalize and clean string values, stripping extra whitespaces."""
@@ -101,7 +101,8 @@ def get_hardware_info():
         s.connect(("8.8.8.8", 80))
         info["ip_address"] = s.getsockname()[0]
         s.close()
-    except Exception:
+    except Exception as ip_err:
+        logger.warning(f"Failed to get IP via UDP connect, trying fallback: {ip_err}")
         # Fallback to local host IP
         try:
             info["ip_address"] = socket.gethostbyname(socket.gethostname())

@@ -21,6 +21,7 @@ PORT = int(os.environ.get("PORT", 8000))
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+AGENT_SECRET = os.environ.get("AGENT_SECRET_TOKEN", "key_prod_win_agent_d43f721a")
 
 _supabase: Client | None = None
 
@@ -354,6 +355,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
         db = get_db()
 
         if path == "/api/v1/agent/checkin":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
             agent_id = payload.get("agent_id")
             hostname = payload.get("hostname", "Unknown")
             mac_address = payload.get("mac_address", "Unknown").replace("-", ":").upper().strip()
@@ -405,6 +410,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"status": "success", "message": "Check-in successful"})
 
         elif path == "/api/v1/agent/heartbeat":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
             hostname = payload.get("hostname", "Unknown")
             ip_addr = payload.get("ip_address", "")
 
@@ -587,6 +596,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"message": "Logged out successfully."})
 
         elif path == "/api/v1/agent/screen-frame":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
             agent_id = payload.get("agent_id")
             frame = payload.get("frame")
             if agent_id and frame:
@@ -596,6 +609,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "agent_id and frame required"})
 
         elif path == "/api/v1/agent/screen-sharer-checkin":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
             agent_id = payload.get("agent_id")
             hostname = payload.get("hostname")
             if agent_id:
@@ -609,6 +626,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json(400, {"error": "agent_id required"})
 
         elif path == "/api/v1/agent/screen-share-stop-ack":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
             agent_id = payload.get("agent_id")
             if agent_id:
                 _screen_active[agent_id] = False

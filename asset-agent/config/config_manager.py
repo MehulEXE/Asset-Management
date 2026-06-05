@@ -25,7 +25,7 @@ class ConfigManager:
     def __init__(self, config_path=None):
         self.config_path = config_path or _resolve_config_path()
         self.config = {
-            "api_url": "http://localhost:8000",
+            "api_url": "https://asset-management-gciq.onrender.com",
             "agent_token": "DEFAULT_API_TOKEN",
             "checkin_interval_hours": 24,
             "heartbeat_interval_minutes": 30,
@@ -64,8 +64,8 @@ class ConfigManager:
             encrypted_bytes = bytes.fromhex(encrypted_hex)
             _, decrypted = win32crypt.CryptUnprotectData(encrypted_bytes, None, None, None, 0)
             return decrypted.decode("utf-8")
-        except Exception:
-            # If decryption fails, it might be plaintext
+        except Exception as e:
+            logger.warning(f"DPAPI decryption failed (token may be plaintext): {e}")
             return encrypted_hex
 
     def load_config(self):
@@ -96,8 +96,8 @@ class ConfigManager:
         if log_dir and not os.path.exists(log_dir):
             try:
                 os.makedirs(log_dir, exist_ok=True)
-            except Exception:
-                pass
+            except Exception as dir_err:
+                logger.warning(f"Failed to create log directory {log_dir}: {dir_err}")
 
         if changed:
             self.save_config()

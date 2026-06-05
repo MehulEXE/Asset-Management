@@ -73,7 +73,7 @@ def main():
 
     print(f"[3/5] Generating agent configuration...")
     config = {
-        "api_url": "http://localhost:8000",
+        "api_url": "https://asset-management-gciq.onrender.com",
         "agent_token": "",
         "checkin_interval_hours": 24,
         "heartbeat_interval_minutes": 30,

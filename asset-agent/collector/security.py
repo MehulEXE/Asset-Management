@@ -84,8 +84,8 @@ def get_security_info():
                 )
                 if "ON" in res.stdout.upper() and "State" in res.stdout:
                     firewall_active = True
-            except Exception:
-                pass
+            except Exception as netsh_err:
+                logger.warning(f"netsh firewall fallback failed: {netsh_err}")
 
         info["firewall_status"] = "Enabled" if firewall_active else "Disabled"
     except Exception as e:
@@ -130,7 +130,8 @@ def get_security_info():
                     info["bitlocker_status"] = f"C: (Encrypted: {percent})"
                 else:
                     info["bitlocker_status"] = "Off"
-            except Exception:
+            except Exception as bde_err:
+                logger.warning(f"manage-bde bitlocker check failed: {bde_err}")
                 info["bitlocker_status"] = "Off"
     except Exception as e:
         logger.error(f"Error checking BitLocker status: {e}")
@@ -163,6 +164,9 @@ def get_security_info():
                     except Exception:
                         pass
         
+                    except Exception as date_err:
+                        logger.debug(f"Failed to parse QFE date '{date_str}': {date_err}")
+
         if latest_date:
             info["last_update_date"] = latest_date.strftime("%Y-%m-%d")
         else:

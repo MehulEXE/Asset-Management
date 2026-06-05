@@ -39,8 +39,8 @@ def get_os_and_user_info():
         hours, rem = divmod(rem, 3600)
         minutes, seconds = divmod(rem, 60)
         info["uptime"] = f"{int(days)}d {int(hours)}h {int(minutes)}m"
-    except Exception:
-        pass
+    except Exception as uptime_err:
+        logger.warning(f"Failed to format uptime: {uptime_err}")
 
     # Gather via WMI
     c = get_wmi_connection()
@@ -107,8 +107,8 @@ def get_explorer_owner(c_wmi):
                 user = owner_info[0]
                 domain = owner_info[1]
                 return f"{domain}\\{user}" if domain else user
-    except Exception:
-        pass
+    except Exception as explorer_err:
+        logger.warning(f"Failed to get explorer.exe owner: {explorer_err}")
     return None
 
 if __name__ == "__main__":
