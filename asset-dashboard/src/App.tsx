@@ -224,8 +224,19 @@ export default function App() {
     const targetAsset = assets.find(a => a.id === assetId);
     if (!targetAsset) return;
 
+    // Persist allocation on backend
+    fetch(apiUrl(`/api/assets/${encodeURIComponent(assetId)}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        employee_name: employeeName,
+        employee_email: employeeEmail,
+        status: 'Allocated'
+      }),
+    }).catch(() => {});
+
     // Update Asset Status to Allocated
-    setAssets(assets.map(a => a.id === assetId ? { ...a, status: 'Allocated' } : a));
+    setAssets(assets.map(a => a.id === assetId ? { ...a, status: 'Allocated', employee_name: employeeName, employee_email: employeeEmail } : a));
 
     // Register Allocation
     const newAlloc = {
@@ -260,8 +271,13 @@ export default function App() {
     const targetAsset = assets.find(a => a.asset_id === targetAlloc.asset_id);
     if (!targetAsset) return;
 
+    // Persist deallocation on backend
+    fetch(apiUrl(`/api/assets/${encodeURIComponent(targetAsset.id)}/deallocate`), {
+      method: 'PUT',
+    }).catch(() => {});
+
     // Update Asset Status to Available
-    setAssets(assets.map(a => a.id === targetAsset.id ? { ...a, status: 'Available' } : a));
+    setAssets(assets.map(a => a.id === targetAsset.id ? { ...a, status: 'Available', employee_name: '', employee_email: '' } : a));
 
     // Close Allocation
     setAllocations(allocations.map(a => a.id === allocationId ? {
