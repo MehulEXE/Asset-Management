@@ -139,7 +139,7 @@ Apply the database schema to your Supabase project:
 python api_server.py
 ```
 
-The server starts on **http://localhost:8000**.
+The server starts on **https://asset-management-gciq.onrender.com**.
 
 ### 3. Setup & Start Frontend
 
@@ -154,7 +154,7 @@ Create `asset-dashboard/.env` with your Supabase credentials (see `.env.example`
 npm run dev
 ```
 
-The frontend starts on **http://localhost:5173**.
+The frontend starts on **https://asset-management-phi-eight.vercel.app/**.
 
 Open your browser and navigate to http://localhost:5173. Register the first account, then promote it to admin:
 

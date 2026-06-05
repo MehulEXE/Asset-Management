@@ -212,17 +212,24 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, history.data if history else [])
 
         elif path == "/api/v1/download/windows":
-            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asset-agent", "dist", "AssetAgentSetup.exe")
-            if os.path.exists(file_path):
-                self.send_response(200)
-                self.send_header("Content-Type", "application/octet-stream")
-                self.send_header("Content-Disposition", "attachment; filename=AssetAgentSetup.exe")
+            installer_url = os.environ.get("INSTALLER_WINDOWS_URL")
+            if installer_url:
+                self.send_response(302)
+                self.send_header("Location", installer_url)
                 self.send_cors_headers()
                 self.end_headers()
-                with open(file_path, "rb") as f:
-                    self.wfile.write(f.read())
             else:
-                self._send_json(404, {"error": "Windows installer file not found on server."})
+                file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asset-agent", "dist", "AssetAgentSetup.exe")
+                if os.path.exists(file_path):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/octet-stream")
+                    self.send_header("Content-Disposition", "attachment; filename=AssetAgentSetup.exe")
+                    self.send_cors_headers()
+                    self.end_headers()
+                    with open(file_path, "rb") as f:
+                        self.wfile.write(f.read())
+                else:
+                    self._send_json(404, {"error": "Windows installer file not found on server."})
 
         elif path == "/api/v1/download/mac":
             self.send_response(200)
