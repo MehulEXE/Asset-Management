@@ -1000,6 +1000,43 @@ select.form-control {
 .text-info { color: var(--accent-blue); }
 
 /* =========================================================================
+   PORTAL ATMOSPHERIC BACKGROUND GLOW (same effect as login screen)
+   ========================================================================= */
+.portal-bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.portal-bg-orb-1 {
+  width: 500px;
+  height: 500px;
+  background: var(--accent-blue);
+  top: -10%;
+  right: -5%;
+}
+
+.portal-bg-orb-2 {
+  width: 400px;
+  height: 400px;
+  background: var(--accent-green);
+  bottom: -10%;
+  left: -5%;
+}
+
+.portal-bg-orb-3 {
+  width: 300px;
+  height: 300px;
+  background: var(--accent-orange);
+  top: 50%;
+  left: 60%;
+  transform: translate(-50%, -50%);
+}
+
+/* =========================================================================
    RESPONSIVE — Mobile < 768px
    ========================================================================= */
 

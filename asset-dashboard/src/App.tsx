@@ -407,7 +407,11 @@ export default function App() {
       </aside>
 
       {/* 2. MAIN WORKSPACE */}
-      <main className="main-content">
+      <main className="main-content" style={{ position: 'relative' }}>
+        {/* Atmospheric background glows */}
+        <div className="portal-bg-orb portal-bg-orb-1" />
+        <div className="portal-bg-orb portal-bg-orb-2" />
+        <div className="portal-bg-orb portal-bg-orb-3" />
         <header className="top-bar">
           <div className="page-title">
             <h1>
