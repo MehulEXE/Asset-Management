@@ -380,7 +380,7 @@ export const ActiveAgents: React.FC = () => {
 
         await fetch(`${API_BASE_URL}/api/agents/${agentObj.agent_id}/assign`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             groups: [targetGroup.name]
           })
