@@ -459,6 +459,8 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "assigned_by": assigner_email,
             })
 
+            existing_asset = (sb_select_one("assets", "asset_id", agent["agent_id"]) or
+                              sb_select_one("assets", "mac_address", agent["mac_address"]))
             asset_rec = {
                 "asset_id": agent["agent_id"],
                 "hostname": agent["hostname"],
@@ -491,7 +493,11 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "vendor_name": payload.get("vendor_name", ""),
                 "assigned_by": assigner_email,
             }
-            created_asset = sb_insert("assets", asset_rec)
+            if existing_asset:
+                sb_update("assets", "id", existing_asset["id"], asset_rec)
+                created_asset = existing_asset
+            else:
+                created_asset = sb_insert("assets", asset_rec)
 
             history_entry = {
                 "event_type": "Allocation",
