@@ -162,6 +162,9 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 else:
                     agent["employee_name"] = ""
                     agent["employee_email"] = ""
+            if not is_adm:
+                email = user.get("email", "").lower()
+                agents = [a for a in agents if a.get("assigned_by", "").lower() == email]
             self._send_json(200, agents)
 
         elif len(path_parts) == 3 and path_parts[0] == "api" and path_parts[1] == "agents":
