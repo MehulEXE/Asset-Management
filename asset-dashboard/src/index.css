@@ -9,8 +9,8 @@
 
   /* Light mode (Resend-inverted: white canvas, dark text) */
   --canvas: #f3e3c9;
-  --surface-card: #ebd3ad;
-  --surface-elevated: #dcba85;
+  --surface-card: #ffffff;
+  --surface-elevated: #e2effe;
   --surface-deep: #eef2f6;
   --ink: #000000;
   --body: rgba(0,0,0,0.86);
@@ -60,7 +60,7 @@
 
 [data-theme="dark"] {
   --canvas: #000000;
-  --surface-card: #212124;
+  --surface-card: ##212124;
   --surface-elevated: #101012;
   --surface-deep: #06060a;
   --ink: #fcfdff;
