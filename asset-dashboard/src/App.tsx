@@ -447,7 +447,7 @@ export default function App() {
         {isAdmin && activeTab === 'users' && <UserManagement refreshKey={usersRefreshKey} />}
         {isAdmin && activeTab === 'monitoring' && <LiveTelemetry onWatchScreen={handleWatchScreen} />}
         {activeTab === 'ai' && <AIAssistant />}
-        {isAdmin && activeTab === 'security' && <SecuritySettings />}
+        {activeTab === 'security' && <SecuritySettings />}
       </main>
 
       {screenAgentId && (
