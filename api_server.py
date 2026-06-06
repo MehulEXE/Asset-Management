@@ -442,11 +442,8 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"status": "success"})
 
         elif path == "/api/agents/register":
-            user = self._require_auth()
-            if not user:
-                return
-            assigner_email = user.get("email", "").lower()
-            assigner_name = user.get("name", user.get("email", "Unknown"))
+            assigner_email = payload.get("employee_email", "")
+            assigner_name = payload.get("employee_name", "Unknown")
 
             agent_id_or_mac = payload.get("id") or payload.get("mac_address")
             agent = (sb_select_one("agents", "id", agent_id_or_mac) or
