@@ -8,9 +8,9 @@
   --font-mono: 'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Light mode (Resend-inverted: white canvas, dark text) */
-  --canvas: #e5e5e5;
-  --surface-card: #b2b2b3;
-  --surface-elevated: #818183;
+  --canvas: #f3e3c9;
+  --surface-card: #ebd3ad;
+  --surface-elevated: #dcba85;
   --surface-deep: #eef2f6;
   --ink: #000000;
   --body: rgba(0,0,0,0.86);
