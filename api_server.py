@@ -913,9 +913,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                     self._send_json(400, {"error": str(e)})
 
         elif len(path_parts) == 3 and path_parts[0] == "api" and path_parts[1] == "assets":
-            admin = self._require_admin()
-            if not admin:
-                return
             asset_id = path_parts[2]
             existing = (sb_select_one("assets", "id", asset_id) or
                         sb_select_one("assets", "asset_id", asset_id))
