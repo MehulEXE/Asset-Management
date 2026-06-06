@@ -13,7 +13,8 @@ import {
   LogOut,
   FileCheck,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Menu
 } from 'lucide-react';
 
 // Components
@@ -65,6 +66,7 @@ export default function App() {
   const { isAuthenticated, isLoading, logout, currentUser, isAdmin, token } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [usersRefreshKey, setUsersRefreshKey] = useState(0);
   const [theme, setTheme] = useState<string>('dark');
 
@@ -312,8 +314,11 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* Mobile sidebar backdrop */}
+      <div className={`sidebar-backdrop${mobileSidebarOpen ? ' visible' : ''}`} onClick={() => setMobileSidebarOpen(false)} />
+      
       {/* 1. SIDEBAR */}
-      <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
+      <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}${mobileSidebarOpen ? ' mobile-open' : ''}`}>
         <div className="sidebar-brand">
           <Laptop size={24} />
           <span className="brand-text">ITAM Portal v1.0</span>
@@ -324,60 +329,60 @@ export default function App() {
 
         <ul className="sidebar-menu">
           <li>
-            <a className={`menu-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+            <a className={`menu-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setMobileSidebarOpen(false); }}>
               <LayoutDashboard /> <span className="menu-label">Dashboard</span>
             </a>
           </li>
           <li>
-            <a className={`menu-item ${activeTab === 'assets' ? 'active' : ''}`} onClick={() => setActiveTab('assets')}>
+            <a className={`menu-item ${activeTab === 'assets' ? 'active' : ''}`} onClick={() => { setActiveTab('assets'); setMobileSidebarOpen(false); }}>
               <Laptop /> <span className="menu-label">Asset Inventory</span>
             </a>
           </li>
           <li>
-            <a className={`menu-item ${activeTab === 'active_agents' ? 'active' : ''}`} onClick={() => setActiveTab('active_agents')}>
+            <a className={`menu-item ${activeTab === 'active_agents' ? 'active' : ''}`} onClick={() => { setActiveTab('active_agents'); setMobileSidebarOpen(false); }}>
               <Activity /> <span className="menu-label">{isAdmin ? 'Active Agents' : 'My Assignments'}</span>
             </a>
           </li>
           <li>
-            <a className={`menu-item ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+            <a className={`menu-item ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => { setActiveTab('requests'); setMobileSidebarOpen(false); }}>
               <FileCheck /> <span className="menu-label">{isAdmin ? 'Pending Approvals' : 'My Requests'}</span>
             </a>
           </li>
           {isAdmin && (
             <li>
-              <a className={`menu-item ${activeTab === 'purchases' ? 'active' : ''}`} onClick={() => setActiveTab('purchases')}>
+              <a className={`menu-item ${activeTab === 'purchases' ? 'active' : ''}`} onClick={() => { setActiveTab('purchases'); setMobileSidebarOpen(false); }}>
                 <IndianRupee /> <span className="menu-label">Purchases & Costs</span>
               </a>
             </li>
           )}
           {isAdmin && (
             <li>
-              <a className={`menu-item ${activeTab === 'allocations' ? 'active' : ''}`} onClick={() => setActiveTab('allocations')}>
+              <a className={`menu-item ${activeTab === 'allocations' ? 'active' : ''}`} onClick={() => { setActiveTab('allocations'); setMobileSidebarOpen(false); }}>
                 <UserCheck /> <span className="menu-label">Allocation Logs</span>
               </a>
             </li>
           )}
           {isAdmin && (
             <li>
-              <a className={`menu-item ${activeTab === 'monitoring' ? 'active' : ''}`} onClick={() => setActiveTab('monitoring')}>
+              <a className={`menu-item ${activeTab === 'monitoring' ? 'active' : ''}`} onClick={() => { setActiveTab('monitoring'); setMobileSidebarOpen(false); }}>
                 <Activity /> <span className="menu-label">Live Telemetry</span>
               </a>
             </li>
           )}
           <li>
-            <a className={`menu-item ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')}>
+            <a className={`menu-item ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => { setActiveTab('ai'); setMobileSidebarOpen(false); }}>
               <Bot /> <span className="menu-label">ITAM AI Assistant</span>
             </a>
           </li>
           {isAdmin && (
             <li>
-              <a className={`menu-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+              <a className={`menu-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setMobileSidebarOpen(false); }}>
                 <Users /> <span className="menu-label">User Management</span>
               </a>
             </li>
           )}
           <li>
-            <a className={`menu-item ${activeTab === 'security' ? 'active' : ''}`} onClick={() => setActiveTab('security')}>
+            <a className={`menu-item ${activeTab === 'security' ? 'active' : ''}`} onClick={() => { setActiveTab('security'); setMobileSidebarOpen(false); }}>
               <ShieldAlert /> <span className="menu-label">Security & API</span>
             </a>
           </li>
@@ -432,6 +437,9 @@ export default function App() {
           </div>
           
           <div className="top-bar-actions">
+            <button className="mobile-hamburger" onClick={() => setMobileSidebarOpen(true)}>
+              <Menu size={20} />
+            </button>
             <NotificationBell />
             <span style={{ fontSize: '14px', color: 'var(--charcoal)' }}>System Role: <strong>{isAdmin ? 'Admin' : 'Support Engineer'}</strong></span>
           </div>
