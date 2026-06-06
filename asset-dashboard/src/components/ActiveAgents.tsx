@@ -494,46 +494,42 @@ export const ActiveAgents: React.FC = () => {
             <span className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               Auto Syncing (3s)
             </span>
-            {isAdmin && (
-              <button 
-                className="btn btn-primary" 
-                onClick={handleTriggerImmediateScan} 
-                disabled={isScanning || isRestarting}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: (isScanning || isRestarting) ? 'not-allowed' : 'pointer' }}
-              >
-                {isScanning ? (
-                  <>
-                    <span className="animate-spin" style={{ width: '12px', height: '12px', border: '2px solid white', borderTop: '2px solid transparent', borderRadius: '50%', display: 'inline-block' }} />
-                    Scanning Node...
-                  </>
-                ) : (
-                  <>
-                    <Activity size={14} />
-                    Auto Scanning
-                  </>
-                )}
-              </button>
-            )}
-            {isAdmin && (
-              <button 
-                className="btn btn-secondary" 
-                onClick={handleRestartAgent} 
-                disabled={isScanning || isRestarting}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: (isScanning || isRestarting) ? 'not-allowed' : 'pointer' }}
-              >
-                {isRestarting ? (
-                  <>
-                    <span className="animate-spin" style={{ width: '12px', height: '12px', border: '2px solid var(--text-primary)', borderTop: '2px solid transparent', borderRadius: '50%', display: 'inline-block' }} />
-                    Restarting...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw size={14} />
-                    Restart Agent
-                  </>
-                )}
-              </button>
-            )}
+            <button 
+              className="btn btn-primary" 
+              onClick={handleTriggerImmediateScan} 
+              disabled={isScanning || isRestarting}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: (isScanning || isRestarting) ? 'not-allowed' : 'pointer' }}
+            >
+              {isScanning ? (
+                <>
+                  <span className="animate-spin" style={{ width: '12px', height: '12px', border: '2px solid white', borderTop: '2px solid transparent', borderRadius: '50%', display: 'inline-block' }} />
+                  Scanning Node...
+                </>
+              ) : (
+                <>
+                  <Activity size={14} />
+                  Auto Scanning
+                </>
+              )}
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={handleRestartAgent} 
+              disabled={isScanning || isRestarting}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: (isScanning || isRestarting) ? 'not-allowed' : 'pointer' }}
+            >
+              {isRestarting ? (
+                <>
+                  <span className="animate-spin" style={{ width: '12px', height: '12px', border: '2px solid var(--text-primary)', borderTop: '2px solid transparent', borderRadius: '50%', display: 'inline-block' }} />
+                  Restarting...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={14} />
+                  Restart Agent
+                </>
+              )}
+            </button>
           </div>
         </div>
 

@@ -376,13 +376,11 @@ export default function App() {
               </a>
             </li>
           )}
-          {isAdmin && (
-            <li>
-              <a className={`menu-item ${activeTab === 'security' ? 'active' : ''}`} onClick={() => setActiveTab('security')}>
-                <ShieldAlert /> <span className="menu-label">Security & API</span>
-              </a>
-            </li>
-          )}
+          <li>
+            <a className={`menu-item ${activeTab === 'security' ? 'active' : ''}`} onClick={() => setActiveTab('security')}>
+              <ShieldAlert /> <span className="menu-label">Security & API</span>
+            </a>
+          </li>
         </ul>
 
         <div className="sidebar-footer">
@@ -417,7 +415,7 @@ export default function App() {
               {activeTab === 'users' && 'User Management'}
               {isAdmin && activeTab === 'monitoring' && 'Live Telemetry & Diagnostics'}
               {activeTab === 'ai' && 'AI Copilot Assistant'}
-              {activeTab === 'security' && 'Security & Key Settings'}
+              {activeTab === 'security' && 'Security & API Settings'}
             </h1>
             <p>
               {activeTab === 'dashboard' && 'Overview of active endpoint hardware, software saturation, and status indicators.'}
@@ -429,7 +427,7 @@ export default function App() {
               {activeTab === 'users' && 'Manage registered users, promote or demote administrators, and view device allocations.'}
               {isAdmin && activeTab === 'monitoring' && 'Live screen access for allocated Laptops and Desktops.'}
               {activeTab === 'ai' && 'OpenAI-powered assistant for natural language search, report generation, and warranty forecasts.'}
-              {activeTab === 'security' && 'Role-Based Access Control and Agent API keys registry for secure agent enrollment.'}
+              {activeTab === 'security' && 'Manage API keys, agent tokens, and view security configurations.'}
             </p>
           </div>
           
