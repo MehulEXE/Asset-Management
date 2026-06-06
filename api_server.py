@@ -21,7 +21,7 @@ PORT = int(os.environ.get("PORT", 8000))
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
-AGENT_SECRET = os.environ.get("AGENT_SECRET_TOKEN", "key_prod_win_agent_d43f721a")
+AGENT_SECRET = os.environ.get("AGENT_SECRET_TOKEN", "change-me-in-production")
 
 _supabase: Client | None = None
 
@@ -164,7 +164,7 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                     agent["employee_email"] = ""
             if not is_adm:
                 email = user.get("email", "").lower()
-                agents = [a for a in agents if a.get("employee_email", "").lower() == email]
+                agents = [a for a in agents if a.get("assigned_by", "").lower() == email]
             self._send_json(200, agents)
 
         elif len(path_parts) == 3 and path_parts[0] == "api" and path_parts[1] == "agents":
@@ -442,6 +442,12 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"status": "success"})
 
         elif path == "/api/agents/register":
+            user = self._require_auth()
+            if not user:
+                return
+            assigner_email = user.get("email", "").lower()
+            assigner_name = user.get("name", user.get("email", "Unknown"))
+
             agent_id_or_mac = payload.get("id") or payload.get("mac_address")
             agent = (sb_select_one("agents", "id", agent_id_or_mac) or
                      sb_select_one("agents", "agent_id", agent_id_or_mac) or
@@ -451,7 +457,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json(404, {"status": "error", "message": "Agent not found"})
                 return
 
-            sb_update("agents", "id", agent["id"], {"registration_status": "Registered"})
+            sb_update("agents", "id", agent["id"], {
+                "registration_status": "Registered",
+                "assigned_by": assigner_email,
+            })
 
             asset_rec = {
                 "asset_id": agent["agent_id"],
@@ -483,13 +492,14 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "purchase_date": payload.get("purchase_date", ""),
                 "warranty_expiry": payload.get("warranty_expiry", ""),
                 "vendor_name": payload.get("vendor_name", ""),
+                "assigned_by": assigner_email,
             }
             created_asset = sb_insert("assets", asset_rec)
 
             history_entry = {
                 "event_type": "Allocation",
                 "description": f"Agent registered as asset {payload.get('asset_tag')} and assigned to {payload.get('employee_name')}.",
-                "changed_by": "Administrator",
+                "changed_by": assigner_name,
             }
             sb_insert("asset_history", history_entry)
 

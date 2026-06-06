@@ -19,7 +19,7 @@ def is_admin():
         return False
 
 def elevate():
-    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, subprocess.list2cmdline(sys.argv), None, 1)
     sys.exit(0)
 
 def run_cmd(args, check=True):

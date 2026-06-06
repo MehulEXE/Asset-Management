@@ -27,7 +27,7 @@ class TestConfigManager(unittest.TestCase):
         """Verify that standard fields are correctly generated and populated."""
         mgr = ConfigManager(self.config_path)
         self.assertTrue(mgr.config["agent_id"].startswith("AGENT-WIN-"))
-        self.assertEqual(mgr.config["api_url"], "https://api.assetmanagement.local")
+        self.assertEqual(mgr.config["api_url"], "https://asset-management-gciq.onrender.com")
 
     def test_config_encryption_decryption(self):
         """Verify that ConfigManager encrypts and decrypts values successfully."""

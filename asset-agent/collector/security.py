@@ -163,9 +163,6 @@ def get_security_info():
                             latest_date = dt
                     except Exception:
                         pass
-        
-                    except Exception as date_err:
-                        logger.debug(f"Failed to parse QFE date '{date_str}': {date_err}")
 
         if latest_date:
             info["last_update_date"] = latest_date.strftime("%Y-%m-%d")

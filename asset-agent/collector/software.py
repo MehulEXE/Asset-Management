@@ -1,6 +1,5 @@
 import winreg
 import logging
-import datetime
 
 logger = logging.getLogger("AssetAgent")
 

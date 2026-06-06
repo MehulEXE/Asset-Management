@@ -12,8 +12,8 @@ interface ApiKey {
 
 export const SecuritySettings: React.FC = () => {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([
-    { id: '1', key: 'key_prod_win_agent_d43f721a', description: 'Windows Endpoint Discovery Agents', is_active: true, created_at: '2026-05-20' },
-    { id: '2', key: 'key_prod_linux_daemon_7841bc', description: 'Linux Server Monitoring Daemons', is_active: true, created_at: '2026-05-25' }
+    { id: '1', key: 'agent-key-win-****************', description: 'Windows Endpoint Discovery Agents', is_active: true, created_at: '2026-05-20' },
+    { id: '2', key: 'agent-key-linux-**************', description: 'Linux Server Monitoring Daemons', is_active: true, created_at: '2026-05-25' }
   ]);
 
   const [newKeyDesc, setNewKeyDesc] = useState('');

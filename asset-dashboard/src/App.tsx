@@ -335,7 +335,7 @@ export default function App() {
           </li>
           <li>
             <a className={`menu-item ${activeTab === 'active_agents' ? 'active' : ''}`} onClick={() => setActiveTab('active_agents')}>
-              <Activity /> <span className="menu-label">Active Agents</span>
+              <Activity /> <span className="menu-label">{isAdmin ? 'Active Agents' : 'My Assignments'}</span>
             </a>
           </li>
           <li>
@@ -410,7 +410,7 @@ export default function App() {
             <h1>
               {activeTab === 'dashboard' && 'Operations Dashboard'}
               {activeTab === 'assets' && 'Asset Discovery Grid'}
-              {activeTab === 'active_agents' && 'Discovered Active Agents'}
+              {activeTab === 'active_agents' && (isAdmin ? 'Discovered Active Agents' : 'My Assigned Devices')}
               {activeTab === 'requests' && (isAdmin ? 'Pending Approvals' : 'My Requests')}
               {activeTab === 'purchases' && 'Purchase Invoices & Warranties'}
               {activeTab === 'allocations' && 'Asset Allocation Tracking'}
@@ -422,7 +422,7 @@ export default function App() {
             <p>
               {activeTab === 'dashboard' && 'Overview of active endpoint hardware, software saturation, and status indicators.'}
               {activeTab === 'assets' && 'Audit and modify discovered assets, CPU specs, and individual registry software sets.'}
-              {activeTab === 'active_agents' && 'Manage discovered background endpoint agents, map fleet groups, and execute administrative device registration.'}
+              {activeTab === 'active_agents' && (isAdmin ? 'Manage discovered background endpoint agents, map fleet groups, and execute administrative device registration.' : 'View devices assigned by you to employees.')}
               {activeTab === 'requests' && (isAdmin ? 'Review and approve/reject asset requests from users.' : 'Track your hardware and software requests and submit new ones.')}
               {activeTab === 'purchases' && 'Record and analyze IT financial spending, vendor logs, and warranty contracts.'}
               {activeTab === 'allocations' && 'Assign assets to employees, return devices, and trace full audit trails.'}
@@ -435,7 +435,7 @@ export default function App() {
           
           <div className="top-bar-actions">
             <NotificationBell />
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>System Role: <strong>{isAdmin ? 'Admin (Write)' : 'User (Read)'}</strong></span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>System Role: <strong>{isAdmin ? 'Admin' : 'Support Engineer'}</strong></span>
           </div>
         </header>
 

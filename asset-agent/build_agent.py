@@ -26,7 +26,7 @@ def main():
 
     print("Step 1/2: Building AssetAgentService.exe (Windows Service)...")
     run(
-        ["pyinstaller", "--noconfirm", "--clean", "AssetAgentService.spec"],
+        [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "AssetAgentService.spec"],
         "AssetAgentService.exe"
     )
 
@@ -38,7 +38,7 @@ def main():
     print()
     print("Step 2/2: Building AssetAgentSetup.exe (Installer)...")
     run(
-        ["pyinstaller", "--noconfirm", "--clean", "AssetAgentSetup.spec"],
+        [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "AssetAgentSetup.spec"],
         "AssetAgentSetup.exe"
     )
 

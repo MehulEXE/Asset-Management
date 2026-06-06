@@ -10,17 +10,21 @@ logger = logging.getLogger("AssetAgent")
 class TLS12Adapter(HTTPAdapter):
     """Custom HTTP adapter to enforce TLS 1.2+ for secure communications."""
     def __init__(self, retries=3, backoff_factor=2, **kwargs):
-        self._retries = retries
-        self._backoff = backoff_factor
-        super().__init__(**kwargs)
+        retry = Retry(
+            total=retries,
+            backoff_factor=backoff_factor,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["POST", "GET"],
+            raise_on_status=False,
+        )
+        super().__init__(max_retries=retry, **kwargs)
 
     def init_poolmanager(self, connections, maxsize, block=False):
         ctx = ssl.create_default_context()
-        # Enforce TLS 1.2 minimum version
         if hasattr(ssl, "TLSVersion"):
             ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         else:
-            ctx.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1  # Disable TLS 1.0 and 1.1
+            ctx.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
             
         self.poolmanager = PoolManager(
             num_pools=connections,
@@ -28,16 +32,6 @@ class TLS12Adapter(HTTPAdapter):
             block=block,
             ssl_context=ctx
         )
-
-    def send(self, request, **kwargs):
-        retries = Retry(
-            total=self._retries,
-            backoff_factor=self._backoff,
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["POST", "GET"],
-            raise_on_status=False,
-        )
-        return super().send(request, retries=retries, **kwargs)
 
 class APIClient:
     def __init__(self, base_url: str, token: str, verify_certs: bool = True):

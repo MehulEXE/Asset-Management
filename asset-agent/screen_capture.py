@@ -2,7 +2,6 @@ import io
 import base64
 import logging
 import mss
-import mss.tools
 from PIL import Image, ImageDraw
 import win32gui
 import win32ui
