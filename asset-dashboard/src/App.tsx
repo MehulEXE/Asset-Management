@@ -62,7 +62,7 @@ interface Asset {
 }
 
 export default function App() {
-  const { isAuthenticated, isLoading, logout, currentUser, isAdmin } = useAuth();
+  const { isAuthenticated, isLoading, logout, currentUser, isAdmin, token } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [usersRefreshKey, setUsersRefreshKey] = useState(0);
@@ -227,7 +227,7 @@ export default function App() {
     // Persist allocation on backend
     fetch(apiUrl(`/api/assets/${encodeURIComponent(assetId)}`), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         employee_name: employeeName,
         employee_email: employeeEmail,

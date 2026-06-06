@@ -153,7 +153,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             assets_list = all_assets.data if all_assets else []
             asset_by_agent_id = {a["asset_id"]: a for a in assets_list}
             asset_by_mac = {a["mac_address"]: a for a in assets_list}
-            is_adm = user.get("role") == "admin"
             for agent in agents:
                 linked = asset_by_agent_id.get(agent["agent_id"]) or asset_by_mac.get(agent["mac_address"])
                 if linked:
@@ -162,9 +161,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 else:
                     agent["employee_name"] = ""
                     agent["employee_email"] = ""
-            if not is_adm:
-                email = user.get("email", "").lower()
-                agents = [a for a in agents if a.get("assigned_by", "").lower() == email]
             self._send_json(200, agents)
 
         elif len(path_parts) == 3 and path_parts[0] == "api" and path_parts[1] == "agents":
@@ -442,7 +438,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"status": "success"})
 
         elif path == "/api/agents/register":
-            assigner_email = payload.get("employee_email", "")
             assigner_name = payload.get("employee_name", "Unknown")
 
             agent_id_or_mac = payload.get("id") or payload.get("mac_address")
@@ -456,7 +451,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
 
             sb_update("agents", "id", agent["id"], {
                 "registration_status": "Registered",
-                "assigned_by": assigner_email,
             })
 
             existing_asset = (sb_select_one("assets", "asset_id", agent["agent_id"]) or
@@ -491,7 +485,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "purchase_date": payload.get("purchase_date", ""),
                 "warranty_expiry": payload.get("warranty_expiry", ""),
                 "vendor_name": payload.get("vendor_name", ""),
-                "assigned_by": assigner_email,
             }
             if existing_asset:
                 sb_update("assets", "id", existing_asset["id"], asset_rec)
@@ -921,26 +914,27 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
 
         elif len(path_parts) == 3 and path_parts[0] == "api" and path_parts[1] == "assets":
             admin = self._require_admin()
-            if admin:
-                asset_id = path_parts[2]
-                existing = (sb_select_one("assets", "id", asset_id) or
-                            sb_select_one("assets", "asset_id", asset_id))
-                if not existing:
-                    self._send_json(404, {"error": "Asset not found"})
-                else:
-                    allowed_fields = {
-                        "hostname", "category", "manufacturer", "model",
-                        "serial_number", "os_name", "os_version", "ip_address",
-                        "mac_address", "cpu_model", "cpu_cores", "ram_total",
-                        "disks", "software_inventory", "status",
-                        "employee_name", "employee_email", "employee_id",
-                        "company", "department", "location", "purchase_date",
-                        "asset_tag", "vendor_name", "warranty_expiry",
-                    }
-                    updates = {k: v for k, v in payload.items() if k in allowed_fields}
-                    if updates:
-                        sb_update("assets", "id", existing["id"], updates)
-                    self._send_json(200, {"status": "success", "asset": {**existing, **updates}})
+            if not admin:
+                return
+            asset_id = path_parts[2]
+            existing = (sb_select_one("assets", "id", asset_id) or
+                        sb_select_one("assets", "asset_id", asset_id))
+            if not existing:
+                self._send_json(404, {"error": "Asset not found"})
+                return
+            allowed_fields = {
+                "hostname", "category", "manufacturer", "model",
+                "serial_number", "os_name", "os_version", "ip_address",
+                "mac_address", "cpu_model", "cpu_cores", "ram_total",
+                "disks", "software_inventory", "status",
+                "employee_name", "employee_email", "employee_id",
+                "company", "department", "location", "purchase_date",
+                "asset_tag", "vendor_name", "warranty_expiry",
+            }
+            updates = {k: v for k, v in payload.items() if k in allowed_fields}
+            if updates:
+                sb_update("assets", "id", existing["id"], updates)
+            self._send_json(200, {"status": "success", "asset": {**existing, **updates}})
 
         else:
             self._send_json(404, {"error": "Not found"})
