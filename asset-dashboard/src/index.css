@@ -8,9 +8,9 @@
   --font-mono: 'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Light mode (Resend-inverted: white canvas, dark text) */
-  --canvas: #fcfdff;
-  --surface-card: #ffffff;
-  --surface-elevated: #f1f7fe;
+  --canvas: #e5e5e5;
+  --surface-card: #b2b2b3;
+  --surface-elevated: #818183;
   --surface-deep: #eef2f6;
   --ink: #000000;
   --body: rgba(0,0,0,0.86);
@@ -60,7 +60,7 @@
 
 [data-theme="dark"] {
   --canvas: #000000;
-  --surface-card: #27272A;
+  --surface-card: #212124;
   --surface-elevated: #101012;
   --surface-deep: #06060a;
   --ink: #fcfdff;
