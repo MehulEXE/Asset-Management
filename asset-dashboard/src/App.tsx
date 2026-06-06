@@ -300,8 +300,8 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--text-tertiary)' }}>
-        <div className="animate-spin" style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%' }} />
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--charcoal)' }}>
+        <div className="animate-spin" style={{ width: 32, height: 32, border: '3px solid var(--hairline-strong)', borderTopColor: 'var(--ink)', borderRadius: '50%' }} />
       </div>
     );
   }
@@ -385,15 +385,15 @@ export default function App() {
 
         <div className="sidebar-footer">
           <div className="sidebar-footer-content">
-            <div className="user-info" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0 4px' }}>
+            <div className="user-info" style={{ fontSize: '14px', color: 'var(--charcoal)', padding: '0 4px' }}>
               <strong>{currentUser?.name}</strong>
-              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{currentUser?.email}</span>
+              <span style={{ display: 'block', fontSize: '12px', color: 'var(--mute)' }}>{currentUser?.email}</span>
             </div>
             <div className="footer-actions" style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-secondary" style={{ flex: 1, padding: '8px 12px', fontSize: '0.85rem' }} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
                 {theme === 'dark' ? <><Sun size={14} style={{ marginRight: '6px' }} /> <span className="btn-label">Light</span></> : <><Moon size={14} style={{ marginRight: '6px' }} /> <span className="btn-label">Dark</span></>}
               </button>
-              <button className="btn btn-secondary" style={{ padding: '8px 12px', fontSize: '0.85rem', color: 'var(--danger)' }} onClick={logout} title="Logout">
+              <button className="btn btn-secondary" style={{ color: 'var(--accent-red)' }} onClick={logout} title="Logout">
                 <LogOut size={14} />
               </button>
             </div>
@@ -433,7 +433,7 @@ export default function App() {
           
           <div className="top-bar-actions">
             <NotificationBell />
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>System Role: <strong>{isAdmin ? 'Admin' : 'Support Engineer'}</strong></span>
+            <span style={{ fontSize: '14px', color: 'var(--charcoal)' }}>System Role: <strong>{isAdmin ? 'Admin' : 'Support Engineer'}</strong></span>
           </div>
         </header>
 
