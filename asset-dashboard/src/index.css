@@ -60,7 +60,7 @@
 
 [data-theme="dark"] {
   --canvas: #000000;
-  --surface-card: ##212124;
+  --surface-card: #212124;
   --surface-elevated: #101012;
   --surface-deep: #06060a;
   --ink: #fcfdff;
