@@ -60,7 +60,7 @@
 
 [data-theme="dark"] {
   --canvas: #000000;
-  --surface-card: #0a0a0c;
+  --surface-card: #27272A;
   --surface-elevated: #101012;
   --surface-deep: #06060a;
   --ink: #fcfdff;
@@ -139,8 +139,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .sidebar {
   width: 260px;
-  background-color: var(--canvas);
-  border-right: 1px solid var(--hairline);
+  background-color: var(--surface-card);
+  border-right: 1px solid var(--hairline-strong);
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
