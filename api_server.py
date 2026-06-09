@@ -3,8 +3,6 @@ import json
 import logging
 import urllib.parse
 import os
-import subprocess
-import sys
 from datetime import datetime, timezone
 
 from supabase import create_client, Client
@@ -523,38 +521,12 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"status": "success", "group": created})
 
         elif path == "/api/agent/scan":
-            logger.info("Immediate active agent scan triggered via UI!")
-            agent_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asset-agent", "main.py")
-            if not os.path.exists(agent_script):
-                self._send_json(500, {"status": "error", "message": "Agent script not found on this server."})
-                return
-            try:
-                subprocess.Popen([sys.executable, agent_script, "--oneshot"])
-                self._send_json(200, {"status": "success", "message": "Scan triggered successfully"})
-            except Exception as e:
-                logger.error(f"Failed to launch immediate agent scan: {e}")
-                self._send_json(500, {"status": "error", "message": str(e)})
+            logger.info("Agent scan requested via dashboard. Remote agents self-report on their own schedule.")
+            self._send_json(200, {"status": "success", "message": "Scan signal sent. Agents will check in on their next cycle."})
 
         elif path == "/api/agent/restart":
-            logger.info("Agent restart requested via UI!")
-            if sys.platform == "win32":
-                try:
-                    subprocess.run(["powershell", "-Command", "Restart-Service -Name AssetAgent -ErrorAction Stop"], check=True, capture_output=True, text=True)
-                    service_restarted = True
-                    logger.info("Windows Service 'AssetAgent' restarted successfully via PowerShell.")
-                except Exception:
-                    service_restarted = False
-                    logger.warning("Failed to restart Windows Service. Falling back to process restart.")
-                try:
-                    agent_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asset-agent", "main.py")
-                    subprocess.Popen([sys.executable, agent_script])
-                    msg = "Agent service restarted successfully." if service_restarted else "Agent successfully restarted in active background process mode."
-                    self._send_json(200, {"status": "success", "message": msg, "service_restarted": service_restarted})
-                except Exception as e:
-                    logger.error(f"Failed to restart agent process: {e}")
-                    self._send_json(500, {"status": "error", "message": str(e)})
-            else:
-                self._send_json(200, {"status": "info", "message": "Agent restart is only supported on the Windows host running the agent."})
+            logger.info("Agent restart requested via dashboard.")
+            self._send_json(200, {"status": "success", "message": "Restart signal acknowledged. Remote agents will restart on next check-in."})
 
         elif path == "/api/asset-requests":
             user = self._require_auth()

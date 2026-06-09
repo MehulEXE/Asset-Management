@@ -37,6 +37,17 @@ def generate_agent_id():
     num = random.randint(1, 999999)
     return f"AGENT-WIN-{num:06d}"
 
+def generate_agent_token():
+    """Generate a random agent token."""
+    import hashlib
+    raw = f"{random.random()}{time.time()}{os.urandom(16)}"
+    return hashlib.sha256(raw.encode()).hex()[:32]
+
+def prompt_with_default(prompt_text, default):
+    """Prompt user with a default value shown in brackets."""
+    val = input(f"  {prompt_text} [{default}]: ").strip()
+    return val if val else default
+
 def main():
     print("=" * 60)
     print("  Asset Discovery Agent - Setup")
@@ -71,10 +82,22 @@ def main():
         input("Press Enter to exit...")
         sys.exit(1)
 
+    print()
+    print("--- Configuration ---")
+    default_api_url = input("  Enter API server URL (e.g. http://192.168.1.100:8000): ").strip()
+    if not default_api_url:
+        default_api_url = "http://localhost:8000"
+
+    default_token = input("  Enter agent secret token (or press Enter to auto-generate): ").strip()
+    if not default_token:
+        default_token = generate_agent_token()
+        print(f"  Auto-generated agent token: {default_token}")
+
+    print()
     print(f"[3/5] Generating agent configuration...")
     config = {
-        "api_url": "https://asset-management-gciq.onrender.com",
-        "agent_token": "",
+        "api_url": default_api_url,
+        "agent_token": default_token,
         "checkin_interval_hours": 24,
         "heartbeat_interval_minutes": 30,
         "agent_id": generate_agent_id(),
@@ -89,6 +112,7 @@ def main():
     print(f"    Agent ID: {config['agent_id']}")
     print(f"    API URL:  {config['api_url']}")
     print(f"    Config:   {config_path}")
+    print(f"    Token:    {config['agent_token']}")
 
     print(f"[4/5] Registering Windows Service...")
     print(f"    Running: {service_dst} install")
