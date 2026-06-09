@@ -6,6 +6,6 @@
     "agent_id": "AGENT-WIN-608684",
     "db_path": "C:\\ProgramData\\AssetAgent\\storage.db",
     "log_dir": "C:\\ProgramData\\AssetAgent\\logs",
-    "verify_certs": false,
+    "verify_certs": true,
     "encrypted": false
 }
