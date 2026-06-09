@@ -5,12 +5,15 @@ import ctypes
 import subprocess
 import json
 import random
-import time
+import traceback
 
 INSTALL_DIR = r"C:\Program Files\AssetAgent"
 CONFIG_DIR = os.path.join(INSTALL_DIR, "config")
 DATA_DIR = r"C:\ProgramData\AssetAgent"
 SERVICE_EXE_NAME = "AssetAgentService.exe"
+
+API_URL = "https://asset-management-gciq.onrender.com"
+AGENT_TOKEN = "key_prod_win_agent_d43f721a"
 
 def is_admin():
     try:
@@ -37,107 +40,94 @@ def generate_agent_id():
     num = random.randint(1, 999999)
     return f"AGENT-WIN-{num:06d}"
 
-def generate_agent_token():
-    """Generate a random agent token."""
-    import hashlib
-    raw = f"{random.random()}{time.time()}{os.urandom(16)}"
-    return hashlib.sha256(raw.encode()).hex()[:32]
-
-def prompt_with_default(prompt_text, default):
-    """Prompt user with a default value shown in brackets."""
-    val = input(f"  {prompt_text} [{default}]: ").strip()
-    return val if val else default
-
 def main():
-    print("=" * 60)
-    print("  Asset Discovery Agent - Setup")
-    print("=" * 60)
-    print()
+    try:
+        print("=" * 60)
+        print("  Asset Discovery Agent - Setup")
+        print("=" * 60)
+        print()
 
-    if not is_admin():
-        print("Requesting administrator privileges...")
-        time.sleep(0.5)
-        elevate()
-        return
+        if not is_admin():
+            print("Requesting administrator privileges...")
+            elevate()
+            return
 
-    if getattr(sys, 'frozen', False):
-        src = sys._MEIPASS
-    else:
-        src = os.path.dirname(os.path.abspath(__file__))
+        if getattr(sys, 'frozen', False):
+            src = sys._MEIPASS
+        else:
+            src = os.path.dirname(os.path.abspath(__file__))
 
-    print(f"[1/5] Creating installation directory...")
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    os.makedirs(os.path.join(DATA_DIR, "logs"), exist_ok=True)
-    print(f"    Target: {INSTALL_DIR}")
+        print("[1/5] Creating installation directory...")
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        os.makedirs(os.path.join(DATA_DIR, "logs"), exist_ok=True)
+        print(f"    Target: {INSTALL_DIR}")
 
-    print(f"[2/5] Deploying agent service binary...")
-    service_src = os.path.join(src, SERVICE_EXE_NAME)
-    service_dst = os.path.join(INSTALL_DIR, SERVICE_EXE_NAME)
-    if os.path.exists(service_src):
-        shutil.copy2(service_src, service_dst)
-        size_mb = os.path.getsize(service_src) / (1024 * 1024)
-        print(f"    Deployed {SERVICE_EXE_NAME} ({size_mb:.1f} MB)")
-    else:
-        print(f"  ERROR: {SERVICE_EXE_NAME} not found in bundle!")
+        print("[2/5] Deploying agent service binary...")
+        service_src = os.path.join(src, SERVICE_EXE_NAME)
+        service_dst = os.path.join(INSTALL_DIR, SERVICE_EXE_NAME)
+        if os.path.exists(service_src):
+            shutil.copy2(service_src, service_dst)
+            size_mb = os.path.getsize(service_src) / (1024 * 1024)
+            print(f"    Deployed {SERVICE_EXE_NAME} ({size_mb:.1f} MB)")
+        else:
+            print(f"  ERROR: {SERVICE_EXE_NAME} not found in bundle!")
+            input("Press Enter to exit...")
+            sys.exit(1)
+
+        print()
+        print("[3/5] Generating agent configuration...")
+        config = {
+            "api_url": API_URL,
+            "agent_token": AGENT_TOKEN,
+            "checkin_interval_hours": 24,
+            "heartbeat_interval_minutes": 30,
+            "agent_id": generate_agent_id(),
+            "db_path": os.path.join(DATA_DIR, "storage.db"),
+            "log_dir": os.path.join(DATA_DIR, "logs"),
+            "verify_certs": False,
+            "encrypted": False
+        }
+        config_path = os.path.join(CONFIG_DIR, "config.json")
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=4)
+        print(f"    Agent ID: {config['agent_id']}")
+        print(f"    API URL:  {config['api_url']}")
+        print(f"    Config:   {config_path}")
+
+        print("[4/5] Registering Windows Service...")
+        print(f"    Running: {service_dst} install")
+        run_cmd([service_dst, "--startup=auto", "install"], check=False)
+        print("    Service 'AssetAgent' registered successfully")
+
+        print("[5/5] Starting Windows Service...")
+        print(f"    Running: {service_dst} start")
+        run_cmd([service_dst, "start"], check=False)
+        print("    Service started")
+
+        print()
+        print("=" * 60)
+        print("  INSTALLATION COMPLETE")
+        print("=" * 60)
+        print(f"  Agent ID:     {config['agent_id']}")
+        print(f"  Service Name: AssetAgent")
+        print(f"  Display Name: Asset Discovery Agent")
+        print(f"  Binary Path:  {service_dst}")
+        print()
+        print("  The agent is now running and will report")
+        print("  hardware/software inventory to the API server.")
+        print("=" * 60)
+        print()
+        input("Press Enter to exit...")
+
+    except Exception as e:
+        print()
+        print("=" * 60)
+        print("  INSTALLATION FAILED")
+        print("=" * 60)
+        traceback.print_exc()
+        print()
         input("Press Enter to exit...")
         sys.exit(1)
-
-    print()
-    print("--- Configuration ---")
-    default_api_url = input("  Enter API server URL (e.g. http://192.168.1.100:8000): ").strip()
-    if not default_api_url:
-        default_api_url = "http://localhost:8000"
-
-    default_token = input("  Enter agent secret token (or press Enter to auto-generate): ").strip()
-    if not default_token:
-        default_token = generate_agent_token()
-        print(f"  Auto-generated agent token: {default_token}")
-
-    print()
-    print(f"[3/5] Generating agent configuration...")
-    config = {
-        "api_url": default_api_url,
-        "agent_token": default_token,
-        "checkin_interval_hours": 24,
-        "heartbeat_interval_minutes": 30,
-        "agent_id": generate_agent_id(),
-        "db_path": os.path.join(DATA_DIR, "storage.db"),
-        "log_dir": os.path.join(DATA_DIR, "logs"),
-        "verify_certs": False,
-        "encrypted": False
-    }
-    config_path = os.path.join(CONFIG_DIR, "config.json")
-    with open(config_path, "w") as f:
-        json.dump(config, f, indent=4)
-    print(f"    Agent ID: {config['agent_id']}")
-    print(f"    API URL:  {config['api_url']}")
-    print(f"    Config:   {config_path}")
-    print(f"    Token:    {config['agent_token']}")
-
-    print(f"[4/5] Registering Windows Service...")
-    print(f"    Running: {service_dst} install")
-    run_cmd([service_dst, "--startup=auto", "install"], check=False)
-    print(f"    Service 'AssetAgent' registered successfully")
-
-    print(f"[5/5] Starting Windows Service...")
-    print(f"    Running: {service_dst} start")
-    run_cmd([service_dst, "start"], check=False)
-    print(f"    Service started")
-
-    print()
-    print("=" * 60)
-    print("  INSTALLATION COMPLETE")
-    print("=" * 60)
-    print(f"  Agent ID:     {config['agent_id']}")
-    print(f"  Service Name: AssetAgent")
-    print(f"  Display Name: Asset Discovery Agent")
-    print(f"  Binary Path:  {service_dst}")
-    print()
-    print("  The agent is now running and will report")
-    print("  hardware/software inventory to the API server.")
-    print("=" * 60)
-    print()
-    input("Press Enter to exit...")
 
 if __name__ == "__main__":
     main()

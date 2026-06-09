@@ -1,6 +1,6 @@
 {
     "api_url": "https://asset-management-gciq.onrender.com",
-    "agent_token": "change-me-in-production",
+    "agent_token": "key_prod_win_agent_d43f721a",
     "checkin_interval_hours": 24,
     "heartbeat_interval_minutes": 30,
     "agent_id": "AGENT-WIN-608684",
