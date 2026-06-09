@@ -110,44 +110,72 @@ class AssetAgent:
         """Collects full inventory and uploads it to the API, or queues it locally if offline."""
         logger.info("Starting full inventory collection...")
         try:
-            # Gather all system parameters
-            hw_info = get_hardware_info()
-            os_info = get_os_and_user_info()
-            software_inventory = get_installed_software()
-            security_info = get_security_info()
+            # Gather each collector independently so one failure doesn't block the rest
+            hw_info = {"hostname": socket.gethostname(), "serial_number": "Unknown",
+                       "manufacturer": "Unknown", "model": "Unknown", "cpu": "Unknown",
+                       "cpu_cores": 0, "cpu_threads": 0, "ram_total": "0 GB",
+                       "ram_available": "0 GB", "disks": [], "mac_address": "Unknown",
+                       "ip_address": "Unknown", "bios_version": "Unknown",
+                       "motherboard_serial": "Unknown"}
+            try:
+                hw_info = get_hardware_info()
+            except Exception as e:
+                logger.error(f"Hardware collector failed, using defaults: {e}", exc_info=True)
+
+            os_info = {"os_name": "Microsoft Windows", "os_version": "Unknown",
+                       "build_number": "Unknown", "architecture": "Unknown",
+                       "uptime": "Unknown", "logged_in_user": "Unknown",
+                       "domain_name": "WORKGROUP", "last_login_time": "Unknown"}
+            try:
+                os_info = get_os_and_user_info()
+            except Exception as e:
+                logger.error(f"OS info collector failed, using defaults: {e}", exc_info=True)
+
+            software_inventory = []
+            try:
+                software_inventory = get_installed_software()
+            except Exception as e:
+                logger.error(f"Software collector failed, sending empty list: {e}", exc_info=True)
+
+            security_info = {"windows_defender": "Unknown", "firewall_status": "Unknown",
+                             "bitlocker_status": "Unknown", "last_update_date": "Unknown"}
+            try:
+                security_info = get_security_info()
+            except Exception as e:
+                logger.error(f"Security collector failed, using defaults: {e}", exc_info=True)
 
             # Compile into unified check-in schema matching specifications
             payload = {
                 "agent_id": self.config["agent_id"],
-                "hostname": hw_info["hostname"],
-                "serial_number": hw_info["serial_number"],
-                "manufacturer": hw_info["manufacturer"],
-                "model": hw_info["model"],
-                "cpu": hw_info["cpu"],
-                "cpu_cores": hw_info["cpu_cores"],
-                "ram_total": hw_info["ram_total"],
-                "os_name": os_info["os_name"],
-                "os_version": os_info["os_version"],
-                "ip_address": hw_info["ip_address"],
-                "mac_address": hw_info["mac_address"],
+                "hostname": hw_info.get("hostname", socket.gethostname()),
+                "serial_number": hw_info.get("serial_number", "Unknown"),
+                "manufacturer": hw_info.get("manufacturer", "Unknown"),
+                "model": hw_info.get("model", "Unknown"),
+                "cpu": hw_info.get("cpu", "Unknown"),
+                "cpu_cores": hw_info.get("cpu_cores", 0),
+                "ram_total": hw_info.get("ram_total", "0 GB"),
+                "os_name": os_info.get("os_name", "Microsoft Windows"),
+                "os_version": os_info.get("os_version", "Unknown"),
+                "ip_address": hw_info.get("ip_address", "Unknown"),
+                "mac_address": hw_info.get("mac_address", "Unknown"),
                 "software_inventory": software_inventory,
                 
                 # Extended production attributes (rich metrics)
-                "bios_version": hw_info["bios_version"],
-                "motherboard_serial": hw_info["motherboard_serial"],
-                "cpu_threads": hw_info["cpu_threads"],
-                "ram_available": hw_info["ram_available"],
-                "disks": hw_info["disks"],
-                "os_build": os_info["build_number"],
-                "os_architecture": os_info["architecture"],
-                "system_uptime": os_info["uptime"],
-                "logged_in_user": os_info["logged_in_user"],
-                "domain_name": os_info["domain_name"],
-                "last_login_time": os_info["last_login_time"],
-                "windows_defender": security_info["windows_defender"],
-                "firewall_status": security_info["firewall_status"],
-                "bitlocker_status": security_info["bitlocker_status"],
-                "last_windows_update": security_info["last_update_date"]
+                "bios_version": hw_info.get("bios_version", "Unknown"),
+                "motherboard_serial": hw_info.get("motherboard_serial", "Unknown"),
+                "cpu_threads": hw_info.get("cpu_threads", 0),
+                "ram_available": hw_info.get("ram_available", "0 GB"),
+                "disks": hw_info.get("disks", []),
+                "os_build": os_info.get("build_number", "Unknown"),
+                "os_architecture": os_info.get("architecture", "Unknown"),
+                "system_uptime": os_info.get("uptime", "Unknown"),
+                "logged_in_user": os_info.get("logged_in_user", "Unknown"),
+                "domain_name": os_info.get("domain_name", "WORKGROUP"),
+                "last_login_time": os_info.get("last_login_time", "Unknown"),
+                "windows_defender": security_info.get("windows_defender", "Unknown"),
+                "firewall_status": security_info.get("firewall_status", "Unknown"),
+                "bitlocker_status": security_info.get("bitlocker_status", "Unknown"),
+                "last_windows_update": security_info.get("last_update_date", "Unknown")
             }
 
             # Attempt sending

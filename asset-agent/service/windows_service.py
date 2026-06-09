@@ -64,8 +64,14 @@ class AssetDiscoveryAgentService(win32serviceutil.ServiceFramework):
             
             # Perform initial inventory check-in and heartbeat immediately on startup
             logger.info("Executing initial startup check-in and heartbeat...")
-            self.agent.perform_full_inventory()
-            self.agent.perform_heartbeat()
+            try:
+                self.agent.perform_full_inventory()
+            except Exception as inv_err:
+                logger.error(f"Initial inventory check-in failed (will retry next cycle): {inv_err}", exc_info=True)
+            try:
+                self.agent.perform_heartbeat()
+            except Exception as hb_err:
+                logger.error(f"Initial heartbeat failed (will retry next cycle): {hb_err}", exc_info=True)
             
             last_checkin = time.time()
             last_heartbeat = time.time()
@@ -86,11 +92,17 @@ class AssetDiscoveryAgentService(win32serviceutil.ServiceFramework):
                 now = time.time()
                 
                 if now - last_checkin >= checkin_interval:
-                    self.agent.perform_full_inventory()
+                    try:
+                        self.agent.perform_full_inventory()
+                    except Exception as inv_err:
+                        logger.error(f"Scheduled inventory failed (will retry next cycle): {inv_err}", exc_info=True)
                     last_checkin = now
                     
                 if now - last_heartbeat >= heartbeat_interval:
-                    self.agent.perform_heartbeat()
+                    try:
+                        self.agent.perform_heartbeat()
+                    except Exception as hb_err:
+                        logger.error(f"Scheduled heartbeat failed (will retry next cycle): {hb_err}", exc_info=True)
                     last_heartbeat = now
                     
         except Exception as e:

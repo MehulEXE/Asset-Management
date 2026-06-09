@@ -2,6 +2,8 @@ import platform
 import logging
 import time
 import datetime
+import threading
+import subprocess
 from collector.hardware import get_wmi_connection, release_wmi_connection, clean_value
 
 logger = logging.getLogger("AssetAgent")
@@ -71,12 +73,28 @@ def get_os_and_user_info():
 
             # Last login time / Active session info
             # Query Win32_NetworkLoginProfile for interactive logon
+            # NOTE: This WMI class can be extremely slow (30+ seconds) on domain-joined
+            # or Server machines, so we run it in a thread with a timeout.
             last_login = None
-            for profile in c.Win32_NetworkLoginProfile():
-                # Filter for local interactive profiles
-                if profile.LastLogon and profile.Name and not profile.Name.startswith("NT AUTHORITY"):
-                    last_login = profile.LastLogon
-                    break
+            login_result = [None]  # mutable container for thread result
+
+            def _query_login_profiles(wmi_conn, result_holder):
+                try:
+                    for profile in wmi_conn.Win32_NetworkLoginProfile():
+                        if profile.LastLogon and profile.Name and not profile.Name.startswith("NT AUTHORITY"):
+                            result_holder[0] = profile.LastLogon
+                            break
+                except Exception as lp_err:
+                    logger.debug(f"Win32_NetworkLoginProfile query failed: {lp_err}")
+
+            login_thread = threading.Thread(target=_query_login_profiles, args=(c, login_result), daemon=True)
+            login_thread.start()
+            login_thread.join(timeout=10)  # Wait at most 10 seconds
+
+            if login_thread.is_alive():
+                logger.warning("Win32_NetworkLoginProfile query timed out after 10s, skipping.")
+            else:
+                last_login = login_result[0]
             
             if last_login:
                 # Format: yyyymmddhhmmss.ffffff+zzz
@@ -87,9 +105,12 @@ def get_os_and_user_info():
                 except Exception:
                     info["last_login_time"] = str(last_login)
             else:
-                # Fallback: get boot time as a proxy for last login if WMI profile has no login time
-                boot_time_dt = datetime.datetime.fromtimestamp(psutil_boot_time())
-                info["last_login_time"] = boot_time_dt.strftime("%Y-%m-%d %H:%M:%S")
+                # Fallback: get boot time as a proxy for last login
+                try:
+                    boot_time_dt = datetime.datetime.fromtimestamp(psutil_boot_time())
+                    info["last_login_time"] = boot_time_dt.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    info["last_login_time"] = "Unknown"
 
         except Exception as e:
             logger.error(f"WMI OS/User query failed: {e}")
@@ -99,14 +120,28 @@ def get_os_and_user_info():
     return info
 
 def get_explorer_owner(c_wmi):
-    """Finds the owner of the explorer.exe process as fallback for logged-in user."""
+    """Finds the owner of the explorer.exe process as fallback for logged-in user.
+    
+    WMI GetOwner() returns a tuple: (returnValue, user, domain)
+    where returnValue=0 means success.
+    """
     try:
         for process in c_wmi.Win32_Process(Name="explorer.exe"):
             owner_info = process.GetOwner()
-            if owner_info and len(owner_info) >= 2 and owner_info[0] is not None:
+            # GetOwner() returns (returnValue, user, domain)
+            # returnValue=0 means success, user is at index 2, domain at index 1
+            # Actually the WMI python wrapper returns: (return_value, user, domain)
+            if owner_info and len(owner_info) >= 3 and owner_info[0] == 0:
+                user = owner_info[2]   # user name
+                domain = owner_info[1] # domain
+                if user:
+                    return f"{domain}\\{user}" if domain else user
+            elif owner_info and len(owner_info) >= 2:
+                # Some WMI wrappers return just (user, domain) without returnValue
                 user = owner_info[0]
-                domain = owner_info[1]
-                return f"{domain}\\{user}" if domain else user
+                domain = owner_info[1] if len(owner_info) > 1 else None
+                if user and not str(user).isdigit():  # Ensure it's not the return code
+                    return f"{domain}\\{user}" if domain else str(user)
     except Exception as explorer_err:
         logger.warning(f"Failed to get explorer.exe owner: {explorer_err}")
     return None

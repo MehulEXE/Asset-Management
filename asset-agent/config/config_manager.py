@@ -70,6 +70,7 @@ class ConfigManager:
 
     def load_config(self):
         """Loads configuration from file and initializes missing fields."""
+        changed = False
         if os.path.exists(self.config_path):
             try:
                 with open(self.config_path, "r") as f:
@@ -80,13 +81,30 @@ class ConfigManager:
                 
                 # Decrypt sensitive fields if marked as encrypted
                 if self.config.get("encrypted", False):
-                    self.config["agent_token"] = self.decrypt_val(self.config["agent_token"])
+                    raw_token = self.config["agent_token"]
+                    decrypted = self.decrypt_val(raw_token)
+                    
+                    # Validate decrypted token — if DPAPI fails (e.g. config moved to
+                    # a different machine), decrypt_val returns the raw hex string.
+                    # A valid token should NOT be a long hex-only string.
+                    if decrypted == raw_token and len(raw_token) > 50 and all(c in '0123456789abcdefABCDEF' for c in raw_token):
+                        logger.error(
+                            "DPAPI decryption failed — the agent token appears to be an "
+                            "encrypted blob that could not be decrypted on this machine. "
+                            "This typically happens when config.json was copied from another "
+                            "machine. The agent will re-encrypt with the correct token."
+                        )
+                        # Restore the default plaintext token so the agent can still function
+                        self.config["agent_token"] = "key_prod_win_agent_d43f721a"
+                        self.config["encrypted"] = False
+                        changed = True
+                    else:
+                        self.config["agent_token"] = decrypted
                 
             except Exception as e:
                 logger.error(f"Failed to load config: {e}. Reverting to default values.")
 
         # Ensure Agent ID exists and persists
-        changed = False
         if not self.config.get("agent_id"):
             self.config["agent_id"] = self.generate_agent_id()
             changed = True

@@ -79,17 +79,20 @@ def main():
                     break
 
         if os.path.exists(service_src):
-            for attempt in range(5):
+            for attempt in range(10):
                 try:
                     shutil.copy2(service_src, service_dst)
                     break
                 except PermissionError:
-                    if attempt < 4:
-                        time.sleep(2)
+                    if attempt < 9:
+                        print(f"    File locked, retrying ({attempt + 1}/10)...")
+                        time.sleep(3)
                     else:
                         backup = service_dst + ".bak"
                         try:
-                            os.rename(service_dst, backup)
+                            if os.path.exists(backup):
+                                os.remove(backup)
+                            os.replace(service_dst, backup)
                             shutil.copy2(service_src, service_dst)
                             os.remove(backup)
                         except Exception:

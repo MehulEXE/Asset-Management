@@ -162,7 +162,47 @@ def get_hardware_info():
         finally:
             release_wmi_connection()
 
+    # 3. Subprocess fallbacks for any fields still "Unknown" (e.g. WMI broken or unavailable)
+    _fill_from_wmic(info)
+
     return info
+
+
+def _wmic_get(wmic_class, field):
+    """Run wmic to get a single value. Returns cleaned string or None."""
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["wmic", wmic_class, "get", field, "/value"],
+            capture_output=True, text=True, timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        for line in result.stdout.splitlines():
+            if "=" in line:
+                val = line.split("=", 1)[1].strip()
+                if val:
+                    return val
+    except Exception as e:
+        logger.debug(f"wmic {wmic_class} get {field} failed: {e}")
+    return None
+
+
+def _fill_from_wmic(info):
+    """Fill any 'Unknown' hardware fields using wmic subprocess as fallback."""
+    fallback_map = [
+        ("cpu",               "cpu",             "Name"),
+        ("serial_number",     "bios",            "SerialNumber"),
+        ("manufacturer",      "computersystem",  "Manufacturer"),
+        ("model",             "computersystem",  "Model"),
+        ("bios_version",      "bios",            "Version"),
+        ("motherboard_serial","baseboard",        "SerialNumber"),
+    ]
+    for info_key, wmic_class, wmic_field in fallback_map:
+        if info.get(info_key, "Unknown") == "Unknown":
+            val = _wmic_get(wmic_class, wmic_field)
+            if val:
+                info[info_key] = val
+                logger.debug(f"Filled {info_key} from wmic fallback: {val}")
 
 if __name__ == "__main__":
     # Test execution
