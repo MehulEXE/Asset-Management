@@ -6,6 +6,7 @@ import subprocess
 import json
 import random
 import traceback
+import time
 
 INSTALL_DIR = r"C:\Program Files\AssetAgent"
 CONFIG_DIR = os.path.join(INSTALL_DIR, "config")
@@ -65,8 +66,34 @@ def main():
         print("[2/5] Deploying agent service binary...")
         service_src = os.path.join(src, SERVICE_EXE_NAME)
         service_dst = os.path.join(INSTALL_DIR, SERVICE_EXE_NAME)
+
+        if os.path.exists(service_dst):
+            print("    Existing installation detected, stopping service...")
+            run_cmd(["sc.exe", "stop", "AssetAgent"], check=False)
+
+            for _ in range(10):
+                time.sleep(1)
+                res = subprocess.run(["sc.exe", "query", "AssetAgent"], capture_output=True, text=True)
+                if "STOPPED" in res.stdout:
+                    print("    Service stopped.")
+                    break
+
         if os.path.exists(service_src):
-            shutil.copy2(service_src, service_dst)
+            for attempt in range(5):
+                try:
+                    shutil.copy2(service_src, service_dst)
+                    break
+                except PermissionError:
+                    if attempt < 4:
+                        time.sleep(2)
+                    else:
+                        backup = service_dst + ".bak"
+                        try:
+                            os.rename(service_dst, backup)
+                            shutil.copy2(service_src, service_dst)
+                            os.remove(backup)
+                        except Exception:
+                            raise
             size_mb = os.path.getsize(service_src) / (1024 * 1024)
             print(f"    Deployed {SERVICE_EXE_NAME} ({size_mb:.1f} MB)")
         else:
