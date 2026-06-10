@@ -114,7 +114,7 @@ def main():
             "agent_id": generate_agent_id(),
             "db_path": os.path.join(DATA_DIR, "storage.db"),
             "log_dir": os.path.join(DATA_DIR, "logs"),
-            "verify_certs": False,
+            "verify_certs": True,
             "encrypted": False
         }
         config_path = os.path.join(CONFIG_DIR, "config.json")
