@@ -1,16 +1,19 @@
-# ITAM Portal — IT Asset Management System
+# 🖥️ ITAM Portal — IT Asset Management System
+
+[![Live Demo](https://img.shields.io/badge/🔗_Live_App-ITAM_Portal-000000?style=for-the-badge&logo=vercel)](https://asset-management-phi-eight.vercel.app/)
 
 Full-stack IT asset management with automatic endpoint discovery, hardware/software inventory, live telemetry, remote screen sharing, and request/approval workflow.
 
 ## Features
 
 - **Asset Discovery & Inventory** — Windows agent auto-discovers CPU, RAM, disks, serial, MAC, OS details, installed software, and security posture. Runs as a Windows service with periodic check-ins and heartbeats. Offline queuing caches payloads locally when API is unreachable.
-- **Live Telemetry & Screen Sharing** — Admin-only live CPU/RAM/disk usage from active agents. Remote desktop viewing via JPEG base64 frames at ~3–5 FPS. Agent shows a Windows tray notification on share start/stop.
+- **Live Telemetry** — Admin-only live CPU/RAM/disk usage from active agents with real-time monitoring dashboards.
+- **Remote Screen Sharing** — Admin-initiated remote desktop viewing via JPEG base64 frames at ~3–5 FPS. Agent shows a Windows tray notification on share start/stop.
 - **Asset Requests & Approvals** — Users submit hardware/software requests. Admins review, approve, or reject. Approved requests auto-create asset records.
-- **Allocation Tracking** — Assign assets to employees with full audit trail. Return assets with history logs. Track status: Available / Allocated / In Repair / Retired / Disposed.
+- **Allocation Tracking** — Assign assets to employees with full audit trail. Return assets with history logs. Organize assets into groups. Track status: Available / Allocated / In Repair / Retired / Disposed.
 - **Purchase & Warranty Management** — Record purchases with invoice numbers, vendors, costs, and warranty periods.
-- **Role-Based Access Control** — Admin (full access) and User (read-only + requests). Admin-only tabs: Purchases, Allocations, Live Telemetry, User Management, Security Settings. Non-admins see only assets allocated to them.
-- **AI Assistant** — Built-in chat assistant for natural-language queries about your asset inventory.
+- **Role-Based Access Control** — Admin (full access) and User (read-only + requests). Admin-only tabs: Purchases, Allocations, Live Telemetry, User Management. Non-admins see only assets allocated to them and can submit asset requests.
+- **AI Assistant** — Built-in natural-language chat assistant that queries asset inventory, warranties, telemetry, purchases, and history — no external API required.
 
 ## Tech Stack
 
@@ -60,7 +63,6 @@ D:\ASSETMANAGEMENT\
 │           ├── Purchases.tsx
 │           ├── Allocation.tsx
 │           ├── LiveTelemetry.tsx
-│           ├── Monitoring.tsx
 │           ├── ScreenViewer.tsx
 │           ├── UserManagement.tsx
 │           ├── SecuritySettings.tsx
@@ -204,33 +206,47 @@ Output: `dist/AssetAgentService.exe` and `dist/AssetAgentSetup.exe`.
 | POST | `/api/v1/agent/screen-frame` | Upload screen capture frame |
 | POST | `/api/v1/agent/screen-sharer-checkin` | Screen sharer status poll |
 | POST | `/api/v1/agent/screen-share-stop-ack` | Screen share stop acknowledgment |
+| GET | `/api/v1/agent/screen-share-status/{agent_id}` | Check if screen sharing is active |
 
 ### Dashboard Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/v1/assets` | None | List all assets |
-| GET | `/api/v1/agents` | None | List all agents |
+| GET | `/api/v1/agents` | Bearer | List all agents (with employee links) |
+| GET | `/api/agents/{id}` | Bearer | Get a single agent |
 | GET | `/api/v1/metrics` | None | Latest monitoring metrics |
 | GET | `/api/v1/history` | None | Asset history audit trail |
+| GET | `/api/v1/download/windows` | None | Download Windows agent installer |
+| GET | `/api/v1/download/mac` | None | Download macOS agent script |
+| GET | `/api/v1/download/linux` | None | Download Linux agent script |
 | POST | `/api/auth/register` | None | Register new user |
 | POST | `/api/auth/login` | None | Login |
 | POST | `/api/auth/logout` | Bearer | Logout |
 | GET | `/api/auth/me` | Bearer | Current user info |
+| GET | `/api/purchases` | None | List purchases with asset details |
+| GET | `/api/notifications` | Bearer | List notifications + unread count |
+| PUT | `/api/notifications/{id}/read` | Bearer | Mark notification as read |
 | POST | `/api/asset-requests` | Bearer | Submit a request |
-| GET | `/api/asset-requests` | Bearer | List requests |
-| PUT | `/api/asset-requests/{id}/approve` | Admin | Approve request |
+| GET | `/api/asset-requests` | Bearer | List requests (all if admin, own if user) |
+| PUT | `/api/asset-requests/{id}/approve` | Admin | Approve request (auto-creates asset) |
 | PUT | `/api/asset-requests/{id}/reject` | Admin | Reject request |
 | PUT | `/api/assets/{id}` | Admin | Update asset |
 | DELETE | `/api/assets/{id}` | Admin | Delete asset |
 | POST | `/api/agents/register` | Bearer | Register agent as asset |
 | PUT | `/api/assets/{id}/deallocate` | Admin | Deallocate asset |
-| GET | `/api/admin/users` | Admin | List all users |
+| PUT | `/api/agents/{id}/assign` | Admin | Update asset assignment details |
+| GET | `/api/admin/users` | Admin | List all users (with device counts) |
 | PUT | `/api/admin/users/{email}/role` | Admin | Change user role |
 | POST | `/api/screen/{agent_id}/start` | Admin | Start screen sharing |
 | POST | `/api/screen/{agent_id}/stop` | Admin | Stop screen sharing |
 | GET | `/api/screen/frame/{agent_id}` | None | Get latest screen frame |
+| GET | `/api/screen/sharers` | Admin | List active screen sharers |
+| POST | `/api/v1/ai/query` | None | Natural-language asset query AI |
+| POST | `/api/groups/create` | None | Create a new asset group |
 | GET | `/api/health` | None | Health check |
+| POST | `/api/agent/scan` | None | Request agent scan signal |
+| POST | `/api/agent/restart` | None | Request agent restart signal |
 
 ## Environment Variables
 
@@ -243,6 +259,7 @@ Output: `dist/AssetAgentService.exe` and `dist/AssetAgentSetup.exe`.
 | `SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `SUPABASE_SERVICE_KEY` | Supabase service_role key (for auth admin) |
 | `AGENT_SECRET_TOKEN` | Shared secret for agent authentication |
+| `INSTALLER_WINDOWS_URL` | Public URL for the Windows agent EXE download (optional) |
 | `PORT` | API server port (default: 8000) |
 
 Loaded automatically from `.env` via `load_env.py`.
@@ -321,6 +338,8 @@ Key Supabase tables:
 - `allocations` — Asset-employee assignment history
 - `asset_history` — Audit trail for all asset changes
 - `user_profiles` — Extended user data and role assignments
+- `employees` — Employee directory auto-created on agent registration
+- `groups` — Asset grouping for organizational management
 
 ## Building the Agent EXEs
 
