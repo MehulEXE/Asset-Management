@@ -9,7 +9,8 @@ logger = logging.getLogger("AssetAgent")
 
 class TLS12Adapter(HTTPAdapter):
     """Custom HTTP adapter to enforce TLS 1.2+ for secure communications."""
-    def __init__(self, retries=3, backoff_factor=2, **kwargs):
+    def __init__(self, verify_certs=True, retries=3, backoff_factor=2, **kwargs):
+        self._verify_certs = verify_certs
         retry = Retry(
             total=retries,
             backoff_factor=backoff_factor,
@@ -21,17 +22,27 @@ class TLS12Adapter(HTTPAdapter):
 
     def init_poolmanager(self, connections, maxsize, block=False):
         ctx = ssl.create_default_context()
+        if not self._verify_certs:
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
         if hasattr(ssl, "TLSVersion"):
             ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         else:
             ctx.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-            
+
         self.poolmanager = PoolManager(
             num_pools=connections,
             maxsize=maxsize,
             block=block,
             ssl_context=ctx
         )
+
+    def cert_verify(self, conn, url, verify, cert):
+        if verify is False:
+            conn.cert_reqs = "CERT_NONE"
+            conn.check_hostname = False
+            return
+        super().cert_verify(conn, url, verify, cert)
 
 class APIClient:
     def __init__(self, base_url: str, token: str, verify_certs: bool = True):
@@ -41,7 +52,7 @@ class APIClient:
         self.session = requests.Session()
         
         # Enforce TLS 1.2+ via custom adapter with retry support
-        adapter = TLS12Adapter(retries=3, backoff_factor=2)
+        adapter = TLS12Adapter(verify_certs=self.verify_certs, retries=3, backoff_factor=2)
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
         
