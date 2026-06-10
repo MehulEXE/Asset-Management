@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, ShieldCheck, UserCheck, Plus, Check, Monitor, Apple, Terminal, Download } from 'lucide-react';
+import { Shield, ShieldCheck, UserCheck, Plus, Check, Monitor, Apple, Terminal, Download, Copy, CheckCircle } from 'lucide-react';
 import { apiUrl } from '../services/apiConfig';
 
 interface ApiKey {
@@ -18,6 +18,26 @@ export const SecuritySettings: React.FC = () => {
 
   const [newKeyDesc, setNewKeyDesc] = useState('');
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const installCommand = `curl -sL ${apiUrl('/api/v1/download/linux')} | sudo bash`;
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const handleGenerateKey = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,18 +123,56 @@ export const SecuritySettings: React.FC = () => {
                 <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--success-light)', color: 'var(--success)', display: 'flex' }}>
                   <Terminal size={20} />
                 </div>
-                <h3 style={{ fontWeight: 'bold', fontSize: '1rem' }}>Linux Daemon Setup</h3>
+                <h3 style={{ fontWeight: 'bold', fontSize: '1rem' }}>Linux Agent Install</h3>
               </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                Quick enrollment systemd daemon. Installs light python collectors to query cpu, virtual memory, disks, and active interfaces.
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '12px' }}>
+                One-command installation. Downloads and installs the discovery agent as a systemd service — no manual setup required.
               </p>
+              <div style={{
+                backgroundColor: '#1e1e2e',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                fontFamily: 'Consolas, "Courier New", monospace',
+                fontSize: '0.78rem',
+                color: '#cdd6f4',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                border: '1px solid #313244'
+              }}>
+                <span style={{ flexGrow: 1, wordBreak: 'break-all', lineHeight: '1.5' }}>
+                  <span style={{ color: '#a6e3a1' }}>$</span> {installCommand}
+                </span>
+                <button
+                  onClick={() => copyToClipboard(installCommand)}
+                  style={{
+                    background: copied ? 'var(--success)' : 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    cursor: 'pointer',
+                    color: copied ? '#fff' : '#cdd6f4',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.75rem',
+                    flexShrink: 0,
+                    transition: 'all 0.2s'
+                  }}
+                  title="Copy to clipboard"
+                >
+                  {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
             </div>
             <a 
               href={apiUrl('/api/v1/download/linux')} 
               className="btn btn-secondary" 
-              style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', borderColor: 'var(--success)', color: 'var(--success)' }}
+              style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', borderColor: 'var(--success)', color: 'var(--success)' }}
             >
-              Download Linux Daemon .SH
+              <Download size={18} /> Download install.sh
             </a>
           </div>
         </div>

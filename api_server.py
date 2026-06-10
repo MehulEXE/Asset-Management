@@ -3,6 +3,8 @@ import json
 import logging
 import urllib.parse
 import os
+import io
+import tarfile
 from datetime import datetime, timezone
 
 from supabase import create_client, Client
@@ -244,12 +246,52 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"""#!/bin/bash\necho "Installing Enterprise ITAM Discovery Agent for macOS..."\necho "Installation complete. System telemetry active."\n""")
 
         elif path == "/api/v1/download/linux":
-            self.send_response(200)
-            self.send_header("Content-Type", "application/octet-stream")
-            self.send_header("Content-Disposition", "attachment; filename=itam_agent_linux.sh")
-            self.send_cors_headers()
-            self.end_headers()
-            self.wfile.write(b"""#!/bin/bash\necho "Installing Enterprise ITAM Discovery Agent for Linux..."\necho "Installation complete. System telemetry active."\n""")
+            installer_url = os.environ.get("INSTALLER_LINUX_URL")
+            if installer_url:
+                self.send_response(302)
+                self.send_header("Location", installer_url)
+                self.send_cors_headers()
+                self.end_headers()
+            else:
+                installer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asset-agent-linux", "install.sh")
+                if os.path.exists(installer_path):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/x-shellscript")
+                    self.send_header("Content-Disposition", "attachment; filename=install.sh")
+                    self.send_cors_headers()
+                    self.end_headers()
+                    with open(installer_path, "rb") as f:
+                        self.wfile.write(f.read())
+                else:
+                    self._send_json(404, {"error": "Linux installer script not found on server."})
+
+        elif path == "/api/v1/download/linux/tarball":
+            installer_url = os.environ.get("INSTALLER_TARBALL_URL")
+            if installer_url:
+                self.send_response(302)
+                self.send_header("Location", installer_url)
+                self.send_cors_headers()
+                self.end_headers()
+            else:
+                agent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asset-agent-linux")
+                if os.path.isdir(agent_dir):
+                    buf = io.BytesIO()
+                    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+                        for root, dirs, files in os.walk(agent_dir):
+                            for fname in files:
+                                fpath = os.path.join(root, fname)
+                                arcname = os.path.relpath(fpath, agent_dir)
+                                tar.add(fpath, arcname=arcname)
+                    data = buf.getvalue()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/gzip")
+                    self.send_header("Content-Disposition", "attachment; filename=asset-agent-linux.tar.gz")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.send_cors_headers()
+                    self.end_headers()
+                    self.wfile.write(data)
+                else:
+                    self._send_json(404, {"error": "Linux agent directory not found on server."})
 
         elif path == "/api/auth/me":
             user = self._require_auth()
@@ -396,7 +438,7 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
 
             history_entry = {
                 "event_type": "Discovery",
-                "description": f"Windows Agent checked in full hardware & software inventory from {hostname}.",
+                "description": f"Agent checked in full hardware & software inventory from {hostname}.",
                 "changed_by": "AGENT",
             }
             sb_insert("asset_history", history_entry)

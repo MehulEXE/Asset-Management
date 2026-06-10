@@ -1,0 +1,20 @@
+# ITAM Linux Asset Discovery Agent Dependencies
+
+# HTTP client for communication between Agent and API Server
+requests>=2.31.0
+urllib3>=2.2.1
+
+# Telemetry data collection (CPU, Memory, Disk usage metrics)
+psutil>=5.9.8
+
+# Cross-platform /etc/os-release parsing
+distro>=1.9.0
+
+# Security and encryption libraries
+cryptography>=42.0.5
+
+# Offline storage via SQLite
+# (sqlite3 is stdlib, no pip dep needed)
+
+# Optional: for building standalone binaries
+pyinstaller>=6.5.0
