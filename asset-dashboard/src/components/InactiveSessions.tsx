@@ -21,9 +21,21 @@ interface InactiveSessionsProps {
   onBack: () => void;
 }
 
-type Preset = '1d' | '2d' | '1w' | '1m' | 'custom';
+type Preset = '30m' | '1h' | '1d' | '2d' | '1w' | '1m' | 'custom';
 
-const presets: { label: string; value: Preset; hours: number | null }[] = [
+interface PresetItem {
+  label: string;
+  value: Preset;
+  hours: number | null;
+  isDivider?: boolean;
+}
+
+const hourPresets: PresetItem[] = [
+  { label: '30 Minutes', value: '30m', hours: 0.5 },
+  { label: '1 Hour', value: '1h', hours: 1 },
+];
+
+const dayPresets: PresetItem[] = [
   { label: '1 Day', value: '1d', hours: 24 },
   { label: '2 Days', value: '2d', hours: 48 },
   { label: '1 Week', value: '1w', hours: 168 },
@@ -38,8 +50,10 @@ function formatDuration(ms: number): string {
   return `${hours}h`;
 }
 
+const allPresets: (PresetItem | 'divider')[] = [...hourPresets, 'divider', ...dayPresets];
+
 export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBack }) => {
-  const [selectedPreset, setSelectedPreset] = useState<Preset>('2d');
+  const [selectedPreset, setSelectedPreset] = useState<Preset>('1h');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -51,7 +65,7 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
       if (!customStart || !customEnd) return null;
       return { start: new Date(customStart).getTime(), end: new Date(customEnd).getTime() };
     }
-    const preset = presets.find(p => p.value === selectedPreset);
+    const preset = [...hourPresets, ...dayPresets].find(p => p.value === selectedPreset);
     if (!preset || preset.hours === null) return null;
     return { cutoff: Date.now() - preset.hours * 3600000 };
   }, [selectedPreset, customStart, customEnd]);
@@ -97,7 +111,7 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
 
   const activeThresholdMs = useMemo(() => {
     if (selectedPreset === 'custom') return 0;
-    const preset = presets.find(p => p.value === selectedPreset);
+    const preset = [...hourPresets, ...dayPresets].find(p => p.value === selectedPreset);
     return preset?.hours ? preset.hours * 3600000 : 0;
   }, [selectedPreset]);
 
@@ -119,38 +133,45 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
             <Filter size={16} style={{ color: 'var(--text-secondary)' }} />
             <div style={{ position: 'relative' }}>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowDropdown(!showDropdown)}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '140px', justifyContent: 'space-between' }}
-              >
-                <span>{presets.find(p => p.value === selectedPreset)?.label}</span>
-                <ChevronDown size={14} />
-              </button>
-              {showDropdown && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, zIndex: 1000, marginTop: '4px',
-                  backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
-                  borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                  minWidth: '180px', overflow: 'hidden',
-                }}>
-                  {presets.map(p => (
-                    <div
-                      key={p.value}
-                      onClick={() => selectPreset(p.value)}
-                      style={{
-                        padding: '8px 14px', cursor: 'pointer', fontSize: '0.85rem',
-                        backgroundColor: selectedPreset === p.value ? 'var(--bg-tertiary)' : 'transparent',
-                        color: 'var(--text-primary)',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = selectedPreset === p.value ? 'var(--bg-tertiary)' : 'transparent'; }}
-                    >
-                      {p.label}
-                    </div>
-                  ))}
-                </div>
-              )}
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '155px', justifyContent: 'space-between' }}
+                >
+                  <span>{([...hourPresets, ...dayPresets].find(p => p.value === selectedPreset)?.label) || selectedPreset}</span>
+                  <ChevronDown size={14} />
+                </button>
+                {showDropdown && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, zIndex: 1000, marginTop: '4px',
+                    backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                    borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                    minWidth: '180px', overflow: 'hidden',
+                  }}>
+                    {allPresets.map((item, idx) => {
+                      if (item === 'divider') {
+                        return (
+                          <div key={`div-${idx}`} style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '4px 0' }} />
+                        );
+                      }
+                      return (
+                        <div
+                          key={item.value}
+                          onClick={() => selectPreset(item.value)}
+                          style={{
+                            padding: '8px 14px', cursor: 'pointer', fontSize: '0.85rem',
+                            backgroundColor: selectedPreset === item.value ? 'var(--bg-tertiary)' : 'transparent',
+                            color: 'var(--text-primary)',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = selectedPreset === item.value ? 'var(--bg-tertiary)' : 'transparent'; }}
+                        >
+                          {item.label}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
             </div>
           </div>
         </div>
