@@ -422,19 +422,15 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "status": "Online",
                 "last_checkin": now_iso(),
                 "software_inventory": payload.get("software_inventory", []),
-                "logged_in_user": payload.get("logged_in_user", ""),
-                "last_login_time": payload.get("last_login_time", ""),
-                "system_uptime": payload.get("system_uptime", ""),
-                "domain_name": payload.get("domain_name", ""),
-                "manufacturer": payload.get("manufacturer", ""),
-                "model": payload.get("model", ""),
-                "bios_version": payload.get("bios_version", ""),
-                "motherboard_serial": payload.get("motherboard_serial", ""),
-                "cpu_threads": payload.get("cpu_threads", 0),
-                "ram_available": payload.get("ram_available", ""),
-                "os_build": payload.get("os_build", ""),
-                "os_architecture": payload.get("os_architecture", ""),
             }
+
+            # Try to persist optional agent fields (safe fallback if columns don't exist)
+            for opt_field in ["logged_in_user", "last_login_time", "system_uptime", "domain_name",
+                              "manufacturer", "model", "bios_version", "motherboard_serial",
+                              "cpu_threads", "ram_available", "os_build", "os_architecture"]:
+                val = payload.get(opt_field)
+                if val is not None:
+                    agent_rec[opt_field] = val
 
             existing = sb_select_one("agents", "agent_id", agent_id)
             if existing:
@@ -448,14 +444,17 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             else:
                 sb_insert("agents", agent_rec)
 
-            # Update asset last_seen and user info for registered assets matching this agent
-            asset_match = sb_select_one("assets", "asset_id", agent_id)
-            if asset_match:
-                sb_update("assets", "id", asset_match["id"], {
-                    "last_seen": now_iso(),
-                    "logged_in_user": payload.get("logged_in_user", asset_match.get("logged_in_user", "")),
-                    "last_login_time": payload.get("last_login_time", asset_match.get("last_login_time", "")),
-                })
+            # Silently try to update asset last_seen + user info (may fail if columns missing)
+            try:
+                asset_match = sb_select_one("assets", "asset_id", agent_id)
+                if asset_match:
+                    asset_updates = {"last_seen": now_iso()}
+                    lu = payload.get("logged_in_user")
+                    if lu:
+                        asset_updates["logged_in_user"] = lu
+                    sb_update("assets", "id", asset_match["id"], asset_updates)
+            except Exception:
+                pass
 
             history_entry = {
                 "event_type": "Discovery",
@@ -498,11 +497,14 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 }
                 sb_insert("monitoring_metrics", metric_rec)
 
-            # Update asset last_seen for registered assets matching this agent
+            # Silently try to update asset last_seen (may fail if no matching asset or table issue)
             if agent_agent_id:
-                asset_match = sb_select_one("assets", "asset_id", agent_agent_id)
-                if asset_match:
-                    sb_update("assets", "id", asset_match["id"], {"last_seen": now_iso()})
+                try:
+                    asset_match = sb_select_one("assets", "asset_id", agent_agent_id)
+                    if asset_match:
+                        sb_update("assets", "id", asset_match["id"], {"last_seen": now_iso()})
+                except Exception:
+                    pass
 
             self._send_json(200, {"status": "success"})
 
@@ -554,9 +556,11 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "purchase_date": payload.get("purchase_date", ""),
                 "warranty_expiry": payload.get("warranty_expiry", ""),
                 "vendor_name": payload.get("vendor_name", ""),
-                "logged_in_user": agent.get("logged_in_user", ""),
-                "last_login_time": agent.get("last_login_time", ""),
             }
+            # Try to add optional session fields if they exist on the agent
+            for opt in ["logged_in_user", "last_login_time"]:
+                if agent.get(opt):
+                    asset_rec[opt] = agent[opt]
             if existing_asset:
                 sb_update("assets", "id", existing_asset["id"], asset_rec)
                 created_asset = existing_asset
