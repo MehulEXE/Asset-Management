@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Eye, ShieldAlert, MonitorUp, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { RequestAssetModal } from './RequestAssetModal';
@@ -66,13 +66,119 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
   const [formRAM, setFormRAM] = useState('16.00 GB');
   const [formStatus, setFormStatus] = useState('Available');
 
+  const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [showColDropdown, setShowColDropdown] = useState(false);
+  const [highlightedCol, setHighlightedCol] = useState(0);
+
+  const columnDefs = [
+    { label: 'Asset ID', field: 'asset_id' },
+    { label: 'Hostname', field: 'hostname' },
+    { label: 'Category', field: 'category' },
+    { label: 'Status', field: 'status' },
+    { label: 'Allocated To', field: 'employee_name' },
+    { label: 'Serial Number', field: 'serial_number' },
+    { label: 'Manufacturer', field: 'manufacturer' },
+    { label: 'Model', field: 'model' },
+    { label: 'IP Address', field: 'ip_address' },
+    { label: 'MAC Address', field: 'mac_address' },
+    { label: 'CPU Model', field: 'cpu_model' },
+    { label: 'OS Name', field: 'os_name' },
+    { label: 'RAM', field: 'ram_total' },
+  ];
+
+  const parseSearchInput = useCallback((input: string) => {
+    if (!input.startsWith('/')) return { column: null as string | null, value: input, columnTyped: '' };
+    const rest = input.slice(1);
+    const trimmed = rest.trimStart();
+    if (trimmed.startsWith("'")) {
+      const end = trimmed.indexOf("'", 1);
+      if (end === -1) return { column: null, value: input, columnTyped: trimmed.slice(1) };
+      return { column: trimmed.slice(1, end), value: trimmed.slice(end + 1).trimStart(), columnTyped: '' };
+    }
+    const space = trimmed.indexOf(' ');
+    if (space === -1) return { column: null, value: input, columnTyped: trimmed };
+    return { column: trimmed.slice(0, space), value: trimmed.slice(space + 1).trimStart(), columnTyped: '' };
+  }, []);
+
+  const parsed = parseSearchInput(searchTerm);
+  const activeColumn = parsed.column;
+  const activeColumnDef = activeColumn
+    ? columnDefs.find(c => c.label.toLowerCase() === activeColumn.toLowerCase())
+    : null;
+  const filteredColumnDefs = parsed.columnTyped
+    ? columnDefs.filter(c => c.label.toLowerCase().includes(parsed.columnTyped.toLowerCase()))
+    : columnDefs;
+
+  const selectColumn = (label: string) => {
+    const quoted = label.includes(' ') ? `'${label}' ` : `${label} `;
+    setSearchTerm('/' + quoted);
+    setShowColDropdown(false);
+    inputRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!searchTerm.startsWith('/')) { setShowColDropdown(false); return; }
+    const afterSlash = searchTerm.slice(1).trimStart();
+    if (afterSlash.startsWith("'")) {
+      const end = afterSlash.indexOf("'", 1);
+      if (end !== -1 && afterSlash.slice(end + 1).trimStart().length > 0) {
+        setShowColDropdown(false);
+        return;
+      }
+    } else {
+      const space = afterSlash.indexOf(' ');
+      if (space !== -1 && afterSlash.slice(space + 1).trimStart().length > 0) {
+        setShowColDropdown(false);
+        return;
+      }
+    }
+    if (searchTerm === '/') { setShowColDropdown(true); setHighlightedCol(0); return; }
+    if (filteredColumnDefs.length > 0) { setShowColDropdown(true); setHighlightedCol(0); return; }
+    setShowColDropdown(false);
+  }, [searchTerm, filteredColumnDefs.length]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowColDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (!showColDropdown) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedCol(p => Math.min(p + 1, filteredColumnDefs.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedCol(p => Math.max(p - 1, 0));
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      if (filteredColumnDefs[highlightedCol]) {
+        selectColumn(filteredColumnDefs[highlightedCol].label);
+      }
+    } else if (e.key === 'Escape') {
+      setShowColDropdown(false);
+    }
+  };
+
   const categories = ['Laptop', 'Desktop', 'Server', 'Printer', 'Network Device', 'Firewall', 'Mobile Device', 'Software License', 'Other'];
 
   // Filters logic
   const filteredAssets = assets.filter(asset => {
-    const matchesSearch = asset.hostname.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          asset.asset_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          asset.serial_number.toLowerCase().includes(searchTerm.toLowerCase());
+    let matchesSearch = true;
+    if (activeColumnDef && parsed.value) {
+      const fieldVal = String(asset[activeColumnDef.field as keyof Asset] ?? '').toLowerCase();
+      matchesSearch = fieldVal.includes(parsed.value.toLowerCase());
+    } else if (searchTerm) {
+      matchesSearch = asset.hostname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      asset.asset_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      asset.serial_number.toLowerCase().includes(searchTerm.toLowerCase());
+    }
     const matchesCategory = categoryFilter === 'All' || asset.category === categoryFilter;
     const matchesStatus = statusFilter === 'All' || asset.status === statusFilter;
     return matchesSearch && matchesCategory && matchesStatus;
@@ -160,14 +266,53 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
       <div className="card" style={{ marginBottom: '24px', padding: '16px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
           <div style={{ display: 'flex', gap: '12px', flexGrow: 1, maxWidth: '700px' }}>
-            <input 
-              type="text" 
-              className="form-control" 
-              placeholder="Search assets by Hostname, ID, or Serial Number..." 
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{ maxWidth: '350px' }}
-            />
+            <div ref={searchRef} style={{ position: 'relative', maxWidth: '350px', flex: 1 }}>
+              <input
+                ref={inputRef}
+                type="text"
+                className="form-control"
+                placeholder={activeColumnDef ? `Search by ${activeColumnDef.label}...` : "Search assets by Hostname, ID, or Serial Number..."}
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                onFocus={() => { if (searchTerm.startsWith('/') && filteredColumnDefs.length > 0) setShowColDropdown(true); }}
+                style={{ width: '100%' }}
+              />
+              {showColDropdown && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                  backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                  borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', marginTop: '4px',
+                  maxHeight: '260px', overflowY: 'auto',
+                }}>
+                  <div style={{ padding: '8px 12px', fontSize: '0.75rem', color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
+                    Select a column to filter by &mdash; type to narrow
+                  </div>
+                  {filteredColumnDefs.map((col, i) => (
+                    <div
+                      key={col.field}
+                      onClick={() => selectColumn(col.label)}
+                      onMouseEnter={() => setHighlightedCol(i)}
+                      style={{
+                        padding: '8px 12px', cursor: 'pointer', fontSize: '0.85rem',
+                        backgroundColor: i === highlightedCol ? 'var(--bg-tertiary)' : 'transparent',
+                        color: 'var(--text-primary)', transition: 'background 0.1s',
+                      }}
+                    >
+                      {col.label}
+                      <span style={{ float: 'right', fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: 'Consolas' }}>
+                        {col.field}
+                      </span>
+                    </div>
+                  ))}
+                  {filteredColumnDefs.length === 0 && (
+                    <div style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                      No matching columns
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             
             <select 
               className="form-control" 
