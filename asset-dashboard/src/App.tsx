@@ -59,6 +59,7 @@ interface Asset {
   }>;
   status: string;
   last_seen: string;
+  employee_name?: string;
   employee_email?: string;
 }
 

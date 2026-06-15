@@ -28,6 +28,8 @@ interface Asset {
   }>;
   status: string;
   last_seen: string;
+  employee_name?: string;
+  employee_email?: string;
 }
 
 interface AssetListProps {
@@ -216,6 +218,7 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
                 <th>Specs (CPU / RAM / Disk)</th>
                 <th>IP & MAC Address</th>
                 <th>Status</th>
+                <th>Allocated To</th>
                 {!readOnly && <th style={{ textAlign: 'center' }}>Actions</th>}
               </tr>
             </thead>
@@ -253,6 +256,11 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
                     }`}>
                       {asset.status}
                     </span>
+                  </td>
+                  <td>
+                    {asset.employee_name || (
+                      <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Unassigned</span>
+                    )}
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
