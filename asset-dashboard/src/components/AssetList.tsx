@@ -117,6 +117,30 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     inputRef.current?.focus();
   };
 
+  const clearColumn = () => {
+    setSearchTerm('');
+    setShowColDropdown(false);
+    inputRef.current?.focus();
+  };
+
+  const handleValueChange = (val: string) => {
+    if (activeColumnDef) {
+      const label = activeColumnDef.label;
+      const quoted = label.includes(' ') ? `'${label}' ` : `${label} `;
+      setSearchTerm('/' + quoted + val);
+    } else {
+      setSearchTerm(val);
+    }
+  };
+
+  const handleSearchContainerKeyDown = (e: React.KeyboardEvent) => {
+    if (activeColumnDef && !parsed.value && (e.key === 'Backspace' || e.key === 'Delete')) {
+      clearColumn();
+      return;
+    }
+    handleSearchKeyDown(e);
+  };
+
   useEffect(() => {
     if (!searchTerm.startsWith('/')) { setShowColDropdown(false); return; }
     const afterSlash = searchTerm.slice(1).trimStart();
@@ -267,17 +291,52 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
           <div style={{ display: 'flex', gap: '12px', flexGrow: 1, maxWidth: '700px' }}>
             <div ref={searchRef} style={{ position: 'relative', maxWidth: '350px', flex: 1 }}>
-              <input
-                ref={inputRef}
-                type="text"
-                className="form-control"
-                placeholder={activeColumnDef ? `Search by ${activeColumnDef.label}...` : "Search assets by Hostname, ID, or Serial Number..."}
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                onFocus={() => { if (searchTerm.startsWith('/') && filteredColumnDefs.length > 0) setShowColDropdown(true); }}
-                style={{ width: '100%' }}
-              />
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px',
+                border: '1px solid var(--border-color)', borderRadius: '6px',
+                background: 'var(--bg-primary)', minHeight: '36px',
+              }}>
+                {activeColumnDef && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '3px',
+                    padding: '2px 10px 2px 12px', borderRadius: '20px', fontSize: '0.78rem',
+                    fontWeight: 600, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    color: '#fff', whiteSpace: 'nowrap', letterSpacing: '0.02em',
+                    boxShadow: '0 1px 4px rgba(99,102,241,0.3)',
+                  }}>
+                    {activeColumnDef.label}
+                    <button
+                      onClick={clearColumn}
+                      title="Remove column filter"
+                      style={{
+                        background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff',
+                        cursor: 'pointer', padding: '0 0 0 5px', fontSize: '14px',
+                        lineHeight: 1, borderRadius: '50%', width: '16px', height: '16px',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        marginLeft: '2px',
+                      }}
+                    >×</button>
+                  </span>
+                )}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  style={{
+                    border: 'none', outline: 'none', background: 'transparent',
+                    flex: 1, fontSize: '0.85rem', padding: '2px 4px', minWidth: '60px',
+                    color: 'var(--text-primary)',
+                  }}
+                  placeholder={activeColumnDef ? `Search ${activeColumnDef.label}...` : "Search assets by Hostname, ID, or Serial Number..."}
+                  value={activeColumnDef ? parsed.value : searchTerm}
+                  onChange={e => handleValueChange(e.target.value)}
+                  onKeyDown={handleSearchContainerKeyDown}
+                  onFocus={() => {
+                    if (searchTerm.startsWith('/') && !activeColumnDef && filteredColumnDefs.length > 0) {
+                      setShowColDropdown(true);
+                    }
+                  }}
+                />
+              </div>
               {showColDropdown && (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
