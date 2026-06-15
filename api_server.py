@@ -425,25 +425,38 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "software_inventory": payload.get("software_inventory", []),
             }
 
-            # Try to persist optional agent fields (safe fallback if columns don't exist)
+            # Build extended agent_rec with optional fields that the agent may send
+            extended_rec = dict(agent_rec)
             for opt_field in ["logged_in_user", "last_login_time", "system_uptime", "domain_name",
                               "manufacturer", "model", "bios_version", "motherboard_serial",
                               "cpu_threads", "ram_available", "os_build", "os_architecture"]:
                 val = payload.get(opt_field)
                 if val is not None:
-                    agent_rec[opt_field] = val
+                    extended_rec[opt_field] = val
 
             existing = sb_select_one("agents", "agent_id", agent_id)
             if existing:
-                sb_update("agents", "agent_id", agent_id, agent_rec)
+                try:
+                    sb_update("agents", "agent_id", agent_id, extended_rec)
+                except Exception:
+                    sb_update("agents", "agent_id", agent_id, agent_rec)
             elif mac_address and mac_address != "UNKNOWN":
                 existing = sb_select_one("agents", "mac_address", mac_address)
                 if existing:
-                    sb_update("agents", "mac_address", mac_address, agent_rec)
+                    try:
+                        sb_update("agents", "mac_address", mac_address, extended_rec)
+                    except Exception:
+                        sb_update("agents", "mac_address", mac_address, agent_rec)
                 else:
-                    sb_insert("agents", agent_rec)
+                    try:
+                        sb_insert("agents", extended_rec)
+                    except Exception:
+                        sb_insert("agents", agent_rec)
             else:
-                sb_insert("agents", agent_rec)
+                try:
+                    sb_insert("agents", extended_rec)
+                except Exception:
+                    sb_insert("agents", agent_rec)
 
             # Silently try to update asset last_seen + user info (may fail if columns missing)
             try:
