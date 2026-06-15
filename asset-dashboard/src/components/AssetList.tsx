@@ -196,8 +196,18 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
   const filteredAssets = assets.filter(asset => {
     let matchesSearch = true;
     if (activeColumnDef && parsed.value) {
-      const fieldVal = String(asset[activeColumnDef.field as keyof Asset] ?? '').toLowerCase();
-      matchesSearch = fieldVal.includes(parsed.value.toLowerCase());
+      const rawFieldVal = String(asset[activeColumnDef.field as keyof Asset] ?? '').toLowerCase();
+      if (activeColumnDef.field === 'ram_total') {
+        const ramNum = parseFloat(rawFieldVal);
+        const searchNum = parseFloat(parsed.value);
+        if (!isNaN(ramNum) && !isNaN(searchNum)) {
+          matchesSearch = Math.abs(ramNum - searchNum) <= 0.9;
+        } else {
+          matchesSearch = rawFieldVal.includes(parsed.value.toLowerCase());
+        }
+      } else {
+        matchesSearch = rawFieldVal.includes(parsed.value.toLowerCase());
+      }
     } else if (searchTerm) {
       matchesSearch = asset.hostname.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       asset.asset_id.toLowerCase().includes(searchTerm.toLowerCase()) ||

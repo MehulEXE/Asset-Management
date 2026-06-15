@@ -29,6 +29,7 @@ import { AIAssistant } from './components/AIAssistant';
 import { ActiveAgents } from './components/ActiveAgents';
 import { UserManagement } from './components/UserManagement';
 import { AssetRequests } from './components/AssetRequests';
+import { InactiveSessions } from './components/InactiveSessions';
 import { NotificationBell } from './components/NotificationBell';
 import { LoginScreen } from './components/LoginScreen';
 import { useAuth } from './contexts/AuthContext';
@@ -61,6 +62,8 @@ interface Asset {
   last_seen: string;
   employee_name?: string;
   employee_email?: string;
+  logged_in_user?: string;
+  last_login_time?: string;
 }
 
 export default function App() {
@@ -426,6 +429,7 @@ export default function App() {
               {isAdmin && activeTab === 'monitoring' && 'Live Telemetry & Diagnostics'}
               {activeTab === 'ai' && 'AI Copilot Assistant'}
               {activeTab === 'security' && 'Security & API Settings'}
+              {activeTab === 'inactive_sessions' && 'Inactive Sessions'}
             </h1>
             <p>
               {activeTab === 'dashboard' && 'Overview of active endpoint hardware, software saturation, and status indicators.'}
@@ -438,6 +442,7 @@ export default function App() {
               {isAdmin && activeTab === 'monitoring' && 'Live screen access for allocated Laptops and Desktops.'}
               {activeTab === 'ai' && 'OpenAI-powered assistant for natural language search, report generation, and warranty forecasts.'}
               {activeTab === 'security' && 'Manage API keys, agent tokens, and view security configurations.'}
+              {activeTab === 'inactive_sessions' && 'View laptops and desktops that have not checked in within the selected timeframe.'}
             </p>
           </div>
           
@@ -461,6 +466,7 @@ export default function App() {
         {isAdmin && activeTab === 'monitoring' && <LiveTelemetry onWatchScreen={handleWatchScreen} />}
         {activeTab === 'ai' && <AIAssistant />}
         {activeTab === 'security' && <SecuritySettings />}
+        {activeTab === 'inactive_sessions' && <InactiveSessions assets={userAssets} onBack={() => setActiveTab('dashboard')} />}
       </main>
 
       {screenAgentId && (

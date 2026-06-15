@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Laptop, HardDrive, ShieldCheck, FileCheck, Clock, AlertTriangle } from 'lucide-react';
+import { Laptop, HardDrive, ShieldCheck, FileCheck, Clock, AlertTriangle, UserX } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiUrl } from '../services/apiConfig';
 
@@ -41,6 +41,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ assets, setActiveTab }) =>
   const totalAssets = assets.length;
   const allocatedAssets = assets.filter(a => a.status === 'Allocated').length;
   const availableAssets = assets.filter(a => a.status === 'Available').length;
+  const inactiveThreshold = Date.now() - 48 * 3600000; // 2 days
+  const inactiveSessions = assets.filter(a =>
+    (a.category === 'Laptop' || a.category === 'Desktop') &&
+    a.last_seen &&
+    new Date(a.last_seen).getTime() < inactiveThreshold
+  ).length;
 
   // Categories Breakdown
   const categories = assets.reduce((acc: { [key: string]: number }, cur) => {
@@ -89,6 +95,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ assets, setActiveTab }) =>
           <div className="kpi-info">
             <h3>Pending Requests</h3>
             <p>{pendingRequests}</p>
+          </div>
+        </div>
+
+        <div className="card-kpi" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('inactive_sessions')}>
+          <div className="kpi-icon" style={{ backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}>
+            <UserX />
+          </div>
+          <div className="kpi-info">
+            <h3>Inactive Sessions</h3>
+            <p>{inactiveSessions}</p>
           </div>
         </div>
       </div>
