@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from supabase import create_client, Client
 from auth_service import AuthService
+import load_env
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ITAM_API_Server")
