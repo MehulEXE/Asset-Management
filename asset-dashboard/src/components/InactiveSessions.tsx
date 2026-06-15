@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Clock, Filter, ChevronDown } from 'lucide-react';
+import { Clock, Filter, ChevronDown, Activity, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface Asset {
   id: string;
@@ -44,6 +44,7 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
   const [customEnd, setCustomEnd] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showActive, setShowActive] = useState(false);
 
   const threshold = useMemo<{ cutoff: number } | { start: number; end: number } | null>(() => {
     if (selectedPreset === 'custom') {
@@ -55,7 +56,7 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
     return { cutoff: Date.now() - preset.hours * 3600000 };
   }, [selectedPreset, customStart, customEnd]);
 
-  const inactiveAssets = useMemo(() => {
+  const displayAssets = useMemo(() => {
     const laptopsAndDesktops = assets.filter(a =>
       a.category === 'Laptop' || a.category === 'Desktop'
     );
@@ -67,21 +68,38 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
     const startVal = isCutoff ? 0 : (threshold as { start: number; end: number }).start;
     const endVal = isCutoff ? 0 : (threshold as { start: number; end: number }).end;
 
-    return laptopsAndDesktops.filter(a => {
+    let filtered = laptopsAndDesktops.filter(a => {
       const lastSeen = a.last_seen ? new Date(a.last_seen).getTime() : 0;
       if (!lastSeen) return false;
 
+      if (showActive) return true;
       if (isCutoff) return lastSeen < cutoffVal;
       return lastSeen >= startVal && lastSeen <= endVal;
-    }).filter(a => {
+    });
+
+    filtered = filtered.filter(a => {
       if (!searchTerm) return true;
       const q = searchTerm.toLowerCase();
       return a.hostname.toLowerCase().includes(q) ||
              a.asset_id.toLowerCase().includes(q) ||
              (a.employee_name || '').toLowerCase().includes(q) ||
              (a.logged_in_user || '').toLowerCase().includes(q);
-    }).sort((a, b) => new Date(a.last_seen).getTime() - new Date(b.last_seen).getTime());
-  }, [assets, threshold, searchTerm]);
+    });
+
+    if (showActive) {
+      filtered.sort((a, b) => new Date(b.last_seen).getTime() - new Date(a.last_seen).getTime());
+    } else {
+      filtered.sort((a, b) => new Date(a.last_seen).getTime() - new Date(b.last_seen).getTime());
+    }
+
+    return filtered;
+  }, [assets, threshold, searchTerm, showActive]);
+
+  const activeThresholdMs = useMemo(() => {
+    if (selectedPreset === 'custom') return 0;
+    const preset = presets.find(p => p.value === selectedPreset);
+    return preset?.hours ? preset.hours * 3600000 : 0;
+  }, [selectedPreset]);
 
   const selectPreset = (value: Preset) => {
     setSelectedPreset(value);
@@ -153,17 +171,29 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: '24px', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+      <div className="card" style={{ marginBottom: '24px', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
         <input
           type="text"
           className="form-control"
           placeholder="Filter by hostname, asset ID, employee, or logged-in user..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          style={{ maxWidth: '400px' }}
+          style={{ maxWidth: '350px' }}
         />
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          {inactiveAssets.length} inactive device{inactiveAssets.length !== 1 ? 's' : ''} found
+        <button
+          className={`btn ${showActive ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => setShowActive(!showActive)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px' }}
+        >
+          {showActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+          <Activity size={15} />
+          <span>{showActive ? 'Showing All Sessions' : 'Show Active Sessions'}</span>
+        </button>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+          {showActive
+            ? `${displayAssets.length} device${displayAssets.length !== 1 ? 's' : ''} found`
+            : `${displayAssets.length} inactive device${displayAssets.length !== 1 ? 's' : ''} found`
+          }
         </span>
       </div>
 
@@ -177,13 +207,14 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
                 <th>Category</th>
                 <th>Allocated To</th>
                 <th>Logged In User</th>
-                <th>Inactive Duration</th>
+                <th>{showActive ? 'Last Seen / Uptime' : 'Inactive Duration'}</th>
                 <th>Last Seen</th>
               </tr>
             </thead>
             <tbody>
-              {inactiveAssets.map(asset => {
+              {displayAssets.map(asset => {
                 const msAgo = Date.now() - new Date(asset.last_seen).getTime();
+                const isActive = showActive && msAgo < activeThresholdMs;
                 return (
                   <tr key={asset.id}>
                     <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>{asset.asset_id}</td>
@@ -203,14 +234,21 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
                       )}
                     </td>
                     <td>
-                      <div style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '4px',
-                        color: msAgo > 7 * 86400000 ? 'var(--danger)' : msAgo > 2 * 86400000 ? 'var(--warning)' : 'var(--text-secondary)',
-                        fontWeight: msAgo > 2 * 86400000 ? 600 : 400,
-                      }}>
-                        <Clock size={14} />
-                        {formatDuration(msAgo)}
-                      </div>
+                      {isActive ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--success)', fontWeight: 600 }}>
+                          <Activity size={14} />
+                          <span>Active &middot; {formatDuration(msAgo)} uptime</span>
+                        </div>
+                      ) : (
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '4px',
+                          color: msAgo > 7 * 86400000 ? 'var(--danger)' : msAgo > 2 * 86400000 ? 'var(--warning)' : 'var(--text-secondary)',
+                          fontWeight: msAgo > 2 * 86400000 ? 600 : 400,
+                        }}>
+                          <Clock size={14} />
+                          {formatDuration(msAgo)}
+                        </div>
+                      )}
                     </td>
                     <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       {asset.last_seen}
@@ -218,11 +256,11 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
                   </tr>
                 );
               })}
-              {inactiveAssets.length === 0 && (
+              {displayAssets.length === 0 && (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-tertiary)' }}>
                     <Clock size={32} style={{ marginBottom: '10px', opacity: 0.5 }} />
-                    <p>No inactive devices found{threshold ? ' for the selected timeframe' : ''}.</p>
+                    <p>{showActive ? 'No devices found.' : 'No inactive devices found for the selected timeframe.'}</p>
                   </td>
                 </tr>
               )}
