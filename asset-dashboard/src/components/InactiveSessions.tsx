@@ -16,6 +16,7 @@ interface Asset {
   last_login_time?: string;
   login_started_at?: string;
   logout_started_at?: string;
+  offline_since?: string;
 }
 
 interface InactiveSessionsProps {
@@ -248,13 +249,33 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
                 const msAgo = Date.now() - new Date(asset.last_seen).getTime();
                 const isActive = showActive && msAgo < activeThresholdMs;
 
-                const userLoggedIn = asset.logged_in_user && !["No user logged in", "None", "Unknown"].includes(asset.logged_in_user!);
+                const isOffline = !!asset.offline_since;
+                const offlineMs = isOffline
+                  ? Date.now() - new Date(asset.offline_since!).getTime()
+                  : 0;
+
+                const userLoggedIn = !isOffline && asset.logged_in_user &&
+                  !["No user logged in", "None", "Unknown"].includes(asset.logged_in_user!);
                 const sessionMs = userLoggedIn && asset.login_started_at
                   ? Date.now() - new Date(asset.login_started_at).getTime()
                   : 0;
-                const idleMs = !userLoggedIn && asset.logout_started_at
+                const idleMs = !isOffline && !userLoggedIn && asset.logout_started_at
                   ? Date.now() - new Date(asset.logout_started_at).getTime()
                   : 0;
+
+                const userLabel = isOffline
+                  ? "Offline"
+                  : userLoggedIn
+                    ? "Session"
+                    : idleMs > 0
+                      ? "Idle"
+                      : "";
+
+                const durationMs = isOffline
+                  ? offlineMs
+                  : userLoggedIn
+                    ? sessionMs
+                    : idleMs;
 
                 return (
                   <tr key={asset.id}>
@@ -270,15 +291,16 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
                       )}
                     </td>
                     <td>
-                      {asset.logged_in_user ? (
+                      {asset.logged_in_user || isOffline ? (
                         <div>
-                          <div>{asset.logged_in_user}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {userLoggedIn && sessionMs > 0
-                              ? `Session: ${formatShortDuration(sessionMs)}`
-                              : idleMs > 0
-                                ? `Idle: ${formatShortDuration(idleMs)}`
-                                : ""}
+                          <div style={{ color: isOffline ? 'var(--danger)' : undefined }}>
+                            {isOffline ? (asset.logged_in_user || "Unknown") : asset.logged_in_user}
+                          </div>
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: isOffline ? 'var(--danger)' : 'var(--text-secondary)',
+                          }}>
+                            {durationMs > 0 ? `${userLabel}: ${formatShortDuration(durationMs)}` : ""}
                           </div>
                         </div>
                       ) : (
@@ -286,7 +308,12 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
                       )}
                     </td>
                     <td>
-                      {isActive ? (
+                      {isOffline ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--danger)', fontWeight: 600 }}>
+                          <Clock size={14} />
+                          <span>Offline &middot; {formatDuration(offlineMs)}</span>
+                        </div>
+                      ) : isActive ? (
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--success)', fontWeight: 600 }}>
                           <Activity size={14} />
                           <span>Active &middot; {formatDuration(msAgo)} uptime</span>

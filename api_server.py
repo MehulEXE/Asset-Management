@@ -5,7 +5,9 @@ import urllib.parse
 import os
 import io
 import tarfile
-from datetime import datetime, timezone
+import threading
+import time
+from datetime import datetime, timezone, timedelta
 
 from supabase import create_client, Client
 from auth_service import AuthService
@@ -437,6 +439,7 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
 
             existing = sb_select_one("agents", "agent_id", agent_id)
             if existing:
+                extended_rec["offline_since"] = None
                 try:
                     sb_update("agents", "agent_id", agent_id, extended_rec)
                 except Exception:
@@ -500,6 +503,8 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             agent_agent_id = None
             if existing:
                 agent_updates = {"status": "Online", "last_checkin": payload.get("timestamp", now_iso())}
+                if existing.get("offline_since"):
+                    agent_updates["offline_since"] = None
                 lu = payload.get("logged_in_user")
                 if lu:
                     agent_updates["logged_in_user"] = lu
@@ -1056,7 +1061,47 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(404, {"error": "Not found"})
 
 
+OFFLINE_CHECK_INTERVAL = 300  # seconds (5 min)
+HEARTBEAT_TIMEOUT = timedelta(minutes=70)  # 2x default 30min + buffer
+
+def check_offline_agents():
+    """Background task that marks agents as Offline if no heartbeat in HEARTBEAT_TIMEOUT."""
+    while True:
+        try:
+            cutoff = datetime.now(timezone.utc) - HEARTBEAT_TIMEOUT
+            cutoff_str = cutoff.isoformat()
+
+            # Find agents still marked Online whose last_checkin is older than timeout
+            stale = (
+                get_db()
+                .table("agents")
+                .select("id")
+                .eq("status", "Online")
+                .lt("last_checkin", cutoff_str)
+                .execute()
+            )
+            if stale.data:
+                ids = [a["id"] for a in stale.data]
+                now_str = now_iso()
+                for aid in ids:
+                    sb_update("agents", "id", aid, {
+                        "status": "Offline",
+                        "offline_since": now_str,
+                    })
+                logger.info(f"Marked {len(ids)} agent(s) offline (no heartbeat >{HEARTBEAT_TIMEOUT})")
+
+        except Exception as e:
+            logger.warning(f"Offline check error: {e}")
+
+        time.sleep(OFFLINE_CHECK_INTERVAL)
+
+
 def run(server_class=http.server.HTTPServer, handler_class=ITAMRequestHandler):
+    # Start background offline checker
+    t = threading.Thread(target=check_offline_agents, daemon=True)
+    t.start()
+    logger.info("Offline agent checker started (every 5 min)")
+
     server_address = ("", PORT)
     httpd = server_class(server_address, handler_class)
     logger.info(f"ITAM Central API Server running on port {PORT}...")
