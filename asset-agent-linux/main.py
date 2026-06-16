@@ -134,6 +134,7 @@ class AssetAgent:
 
             payload = {
                 "agent_id": self.config["agent_id"],
+                "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                 "hostname": hw_info.get("hostname", socket.gethostname()),
                 "serial_number": hw_info.get("serial_number", "Unknown"),
                 "manufacturer": hw_info.get("manufacturer", "Unknown"),
@@ -192,13 +193,18 @@ class AssetAgent:
             except Exception:
                 disk_usage = "Unknown"
 
+            try:
+                os_info = get_os_and_user_info()
+            except Exception:
+                os_info = {}
             payload = {
                 "agent_id": self.config["agent_id"],
                 "hostname": socket.gethostname(),
                 "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                 "cpu_usage": cpu_usage,
                 "memory_usage": memory_usage,
-                "disk_usage": disk_usage
+                "disk_usage": disk_usage,
+                "logged_in_user": os_info.get("logged_in_user", "Unknown")
             }
 
             if force_offline:

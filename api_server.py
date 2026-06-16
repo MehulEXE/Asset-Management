@@ -462,7 +462,7 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             try:
                 asset_match = sb_select_one("assets", "asset_id", agent_id)
                 if asset_match:
-                    asset_updates = {"last_seen": now_iso()}
+                    asset_updates = {"last_seen": payload.get("timestamp", now_iso())}
                     lu = payload.get("logged_in_user")
                     if lu:
                         asset_updates["logged_in_user"] = lu
@@ -494,7 +494,11 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             agent_id_val = None
             agent_agent_id = None
             if existing:
-                sb_update("agents", "id", existing["id"], {"status": "Online", "last_checkin": now_iso()})
+                agent_updates = {"status": "Online", "last_checkin": payload.get("timestamp", now_iso())}
+                lu = payload.get("logged_in_user")
+                if lu:
+                    agent_updates["logged_in_user"] = lu
+                sb_update("agents", "id", existing["id"], agent_updates)
                 agent_id_val = existing["id"]
                 agent_agent_id = existing.get("agent_id")
 
@@ -511,12 +515,16 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 }
                 sb_insert("monitoring_metrics", metric_rec)
 
-            # Silently try to update asset last_seen (may fail if no matching asset or table issue)
+            # Silently try to update asset last_seen + user info (may fail if no matching asset or table issue)
             if agent_agent_id:
                 try:
                     asset_match = sb_select_one("assets", "asset_id", agent_agent_id)
                     if asset_match:
-                        sb_update("assets", "id", asset_match["id"], {"last_seen": now_iso()})
+                        asset_updates = {"last_seen": payload.get("timestamp", now_iso())}
+                        lu = payload.get("logged_in_user")
+                        if lu:
+                            asset_updates["logged_in_user"] = lu
+                        sb_update("assets", "id", asset_match["id"], asset_updates)
                 except Exception:
                     pass
 
