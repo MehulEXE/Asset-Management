@@ -14,6 +14,8 @@ interface Asset {
   employee_email?: string;
   logged_in_user?: string;
   last_login_time?: string;
+  login_started_at?: string;
+  logout_started_at?: string;
 }
 
 interface InactiveSessionsProps {
@@ -48,6 +50,15 @@ function formatDuration(ms: number): string {
   const days = Math.floor(hours / 24);
   if (days > 0) return `${days}d ${hours % 24}h`;
   return `${hours}h`;
+}
+
+function formatShortDuration(ms: number): string {
+  const hours = Math.floor(ms / 3600000);
+  const days = Math.floor(hours / 24);
+  const mins = Math.floor((ms % 3600000) / 60000);
+  if (days > 0) return `${days}d ${hours % 24}h ${mins}m`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
 }
 
 const allPresets: (PresetItem | 'divider')[] = [...hourPresets, 'divider', ...dayPresets];
@@ -236,6 +247,15 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
               {displayAssets.map(asset => {
                 const msAgo = Date.now() - new Date(asset.last_seen).getTime();
                 const isActive = showActive && msAgo < activeThresholdMs;
+
+                const userLoggedIn = asset.logged_in_user && !["No user logged in", "None", "Unknown"].includes(asset.logged_in_user!);
+                const sessionMs = userLoggedIn && asset.login_started_at
+                  ? Date.now() - new Date(asset.login_started_at).getTime()
+                  : 0;
+                const idleMs = !userLoggedIn && asset.logout_started_at
+                  ? Date.now() - new Date(asset.logout_started_at).getTime()
+                  : 0;
+
                 return (
                   <tr key={asset.id}>
                     <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>{asset.asset_id}</td>
@@ -250,7 +270,18 @@ export const InactiveSessions: React.FC<InactiveSessionsProps> = ({ assets, onBa
                       )}
                     </td>
                     <td>
-                      {asset.logged_in_user || (
+                      {asset.logged_in_user ? (
+                        <div>
+                          <div>{asset.logged_in_user}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            {userLoggedIn && sessionMs > 0
+                              ? `Session: ${formatShortDuration(sessionMs)}`
+                              : idleMs > 0
+                                ? `Idle: ${formatShortDuration(idleMs)}`
+                                : ""}
+                          </div>
+                        </div>
+                      ) : (
                         <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>N/A</span>
                       )}
                     </td>

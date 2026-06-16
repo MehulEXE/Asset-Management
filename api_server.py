@@ -427,7 +427,8 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
 
             # Build extended agent_rec with optional fields that the agent may send
             extended_rec = dict(agent_rec)
-            for opt_field in ["logged_in_user", "last_login_time", "system_uptime", "domain_name",
+            for opt_field in ["logged_in_user", "login_started_at", "logout_started_at",
+                              "last_login_time", "system_uptime", "domain_name",
                               "manufacturer", "model", "bios_version", "motherboard_serial",
                               "cpu_threads", "ram_available", "os_build", "os_architecture"]:
                 val = payload.get(opt_field)
@@ -466,6 +467,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                     lu = payload.get("logged_in_user")
                     if lu:
                         asset_updates["logged_in_user"] = lu
+                    for sk in ("login_started_at", "logout_started_at"):
+                        sv = payload.get(sk)
+                        if sv:
+                            asset_updates[sk] = sv
                     sb_update("assets", "id", asset_match["id"], asset_updates)
             except Exception:
                 pass
@@ -498,6 +503,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 lu = payload.get("logged_in_user")
                 if lu:
                     agent_updates["logged_in_user"] = lu
+                for sk in ("login_started_at", "logout_started_at"):
+                    sv = payload.get(sk)
+                    if sv:
+                        agent_updates[sk] = sv
                 sb_update("agents", "id", existing["id"], agent_updates)
                 agent_id_val = existing["id"]
                 agent_agent_id = existing.get("agent_id")
@@ -524,6 +533,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                         lu = payload.get("logged_in_user")
                         if lu:
                             asset_updates["logged_in_user"] = lu
+                        for sk in ("login_started_at", "logout_started_at"):
+                            sv = payload.get(sk)
+                            if sv:
+                                asset_updates[sk] = sv
                         sb_update("assets", "id", asset_match["id"], asset_updates)
                 except Exception:
                     pass

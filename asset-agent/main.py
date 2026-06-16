@@ -74,6 +74,11 @@ class AssetAgent:
             verify_certs=self.config.get("verify_certs", True)
         )
 
+        # Session state tracking for login/logout detection
+        self._last_logged_in_user = None
+        self._login_started_at = None
+        self._logout_started_at = None
+
         threading.Thread(target=self._run_screen_sharer, daemon=True).start()
 
     def process_offline_queue(self) -> int:
@@ -171,6 +176,8 @@ class AssetAgent:
                 "os_architecture": os_info.get("architecture", "Unknown"),
                 "system_uptime": os_info.get("uptime", "Unknown"),
                 "logged_in_user": os_info.get("logged_in_user", "Unknown"),
+                "login_started_at": self._login_started_at or "",
+                "logout_started_at": self._logout_started_at or "",
                 "domain_name": os_info.get("domain_name", "WORKGROUP"),
                 "last_login_time": os_info.get("last_login_time", "Unknown"),
                 "windows_defender": security_info.get("windows_defender", "Unknown"),
@@ -216,6 +223,29 @@ class AssetAgent:
                 os_info = get_os_and_user_info()
             except Exception:
                 os_info = {}
+            current_user = os_info.get("logged_in_user", "Unknown")
+
+            # Detect login/logout transitions for session timing
+            if self._last_logged_in_user is not None:
+                was_logged_in = self._last_logged_in_user not in ("No user logged in", "None", "Unknown")
+                is_logged_in = current_user not in ("No user logged in", "None", "Unknown")
+                if was_logged_in and not is_logged_in:
+                    # User just logged out
+                    self._logout_started_at = datetime.datetime.utcnow().isoformat() + "Z"
+                    self._login_started_at = None
+                elif not was_logged_in and is_logged_in:
+                    # User just logged in
+                    self._login_started_at = datetime.datetime.utcnow().isoformat() + "Z"
+                    self._logout_started_at = None
+            else:
+                # First run — seed based on current state
+                if current_user not in ("No user logged in", "None", "Unknown"):
+                    self._login_started_at = datetime.datetime.utcnow().isoformat() + "Z"
+                else:
+                    self._logout_started_at = datetime.datetime.utcnow().isoformat() + "Z"
+
+            self._last_logged_in_user = current_user
+
             payload = {
                 "agent_id": self.config["agent_id"],
                 "hostname": socket.gethostname(),
@@ -223,7 +253,9 @@ class AssetAgent:
                 "cpu_usage": cpu_usage,
                 "memory_usage": memory_usage,
                 "disk_usage": disk_usage,
-                "logged_in_user": os_info.get("logged_in_user", "Unknown")
+                "logged_in_user": current_user,
+                "login_started_at": self._login_started_at or "",
+                "logout_started_at": self._logout_started_at or "",
             }
 
             if force_offline:
