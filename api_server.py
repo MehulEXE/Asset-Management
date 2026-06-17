@@ -9,6 +9,33 @@ import threading
 import time
 from datetime import datetime, timezone, timedelta
 
+"""
+Required Supabase tables for Query Assist feature:
+
+CREATE TABLE IF NOT EXISTS query_assist_threads (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  created_by_email TEXT NOT NULL,
+  created_by_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  solved_at TIMESTAMPTZ,
+  auto_solved BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS query_assist_comments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  thread_id UUID NOT NULL REFERENCES query_assist_threads(id) ON DELETE CASCADE,
+  user_email TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comments_thread_id ON query_assist_comments(thread_id);
+"""
+
 from supabase import create_client, Client
 from auth_service import AuthService
 import load_env
@@ -312,6 +339,28 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                         if a.get("employee_email", "").lower() == u["email"].lower()
                     )
                 self._send_json(200, {"users": users})
+
+        elif path == "/api/query-assist/threads":
+            user = self._require_auth()
+            if user:
+                rows = get_db().table("query_assist_threads").select("*").order("created_at", desc=True).execute()
+                threads = rows.data if rows else []
+                for t in threads:
+                    cnt = get_db().table("query_assist_comments").select("id", count="exact").eq("thread_id", t["id"]).execute()
+                    t["comment_count"] = cnt.count if cnt and hasattr(cnt, 'count') else 0
+                self._send_json(200, threads)
+
+        elif len(path_parts) == 4 and path_parts[0] == "api" and path_parts[1] == "query-assist" and path_parts[2] == "threads":
+            user = self._require_auth()
+            if user:
+                thread_id = path_parts[3]
+                thread = sb_select_one("query_assist_threads", "id", thread_id)
+                if thread:
+                    comments_data = get_db().table("query_assist_comments").select("*").eq("thread_id", thread_id).order("created_at").execute()
+                    thread["comments"] = comments_data.data if comments_data else []
+                    self._send_json(200, thread)
+                else:
+                    self._send_json(404, {"error": "Thread not found"})
 
         elif path == "/api/asset-requests":
             user = self._require_auth()
@@ -644,6 +693,36 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/agent/restart":
             logger.info("Agent restart requested via dashboard.")
             self._send_json(200, {"status": "success", "message": "Restart signal acknowledged. Remote agents will restart on next check-in."})
+
+        elif path == "/api/query-assist/threads":
+            user = self._require_auth()
+            if user:
+                rec = {
+                    "title": payload.get("title", ""),
+                    "description": payload.get("description", ""),
+                    "created_by_email": user["email"],
+                    "created_by_name": user["name"],
+                    "status": "open",
+                }
+                created = sb_insert("query_assist_threads", rec)
+                self._send_json(201, created or {"error": "Failed to create thread"})
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "query-assist" and path_parts[2] == "threads" and path_parts[4] == "comments":
+            user = self._require_auth()
+            if user:
+                thread_id = path_parts[3]
+                thread = sb_select_one("query_assist_threads", "id", thread_id)
+                if not thread:
+                    self._send_json(404, {"error": "Thread not found"})
+                else:
+                    rec = {
+                        "thread_id": thread_id,
+                        "user_email": user["email"],
+                        "user_name": user["name"],
+                        "content": payload.get("content", ""),
+                    }
+                    created = sb_insert("query_assist_comments", rec)
+                    self._send_json(201, created or {"error": "Failed to add comment"})
 
         elif path == "/api/asset-requests":
             user = self._require_auth()
@@ -989,6 +1068,19 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                     sb_update("notifications", "id", notif_id, {"is_read": True})
                 self._send_json(200, {"status": "success"})
 
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "query-assist" and path_parts[2] == "threads" and path_parts[4] == "solved":
+            user = self._require_auth()
+            if user:
+                thread_id = path_parts[3]
+                thread = sb_select_one("query_assist_threads", "id", thread_id)
+                if not thread:
+                    self._send_json(404, {"error": "Thread not found"})
+                elif thread["created_by_email"] != user["email"]:
+                    self._send_json(403, {"error": "Only the thread creator can mark as solved"})
+                else:
+                    sb_update("query_assist_threads", "id", thread_id, {"status": "solved", "solved_at": now_iso(), "auto_solved": False})
+                    self._send_json(200, {"status": "success", "message": "Thread marked as solved"})
+
         elif (len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "admin"
               and path_parts[2] == "users" and path_parts[4] == "role"):
             admin = self._require_admin()
@@ -1061,6 +1153,32 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(404, {"error": "Not found"})
 
 
+def auto_solve_query_threads():
+    """Background task that auto-solves threads older than 24 hours."""
+    while True:
+        try:
+            cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+            stale = (
+                get_db()
+                .table("query_assist_threads")
+                .select("id")
+                .eq("status", "open")
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            if stale.data:
+                now_str = now_iso()
+                for t in stale.data:
+                    sb_update("query_assist_threads", "id", t["id"], {
+                        "status": "solved",
+                        "solved_at": now_str,
+                        "auto_solved": True,
+                    })
+                logger.info(f"Auto-solved {len(stale.data)} query thread(s) (24h timeout)")
+        except Exception as e:
+            logger.warning(f"Auto-solve threads error: {e}")
+        time.sleep(300)
+
 OFFLINE_CHECK_INTERVAL = 300  # seconds (5 min)
 HEARTBEAT_TIMEOUT = timedelta(minutes=70)  # 2x default 30min + buffer
 
@@ -1101,6 +1219,11 @@ def run(server_class=http.server.HTTPServer, handler_class=ITAMRequestHandler):
     t = threading.Thread(target=check_offline_agents, daemon=True)
     t.start()
     logger.info("Offline agent checker started (every 5 min)")
+
+    # Start background auto-solve for query threads
+    t2 = threading.Thread(target=auto_solve_query_threads, daemon=True)
+    t2.start()
+    logger.info("Query thread auto-solver started (24h timeout)")
 
     server_address = ("", PORT)
     httpd = server_class(server_address, handler_class)

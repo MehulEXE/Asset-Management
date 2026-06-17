@@ -14,7 +14,8 @@ import {
   FileCheck,
   PanelLeftClose,
   PanelLeftOpen,
-  Menu
+  Menu,
+  MessageSquare
 } from 'lucide-react';
 
 // Components
@@ -30,6 +31,7 @@ import { ActiveAgents } from './components/ActiveAgents';
 import { UserManagement } from './components/UserManagement';
 import { AssetRequests } from './components/AssetRequests';
 import { InactiveSessions } from './components/InactiveSessions';
+import { QueryAssist } from './components/QueryAssist';
 import { NotificationBell } from './components/NotificationBell';
 import { LoginScreen } from './components/LoginScreen';
 import { useAuth } from './contexts/AuthContext';
@@ -378,6 +380,11 @@ export default function App() {
               <Bot /> <span className="menu-label">ITAM AI Assistant</span>
             </a>
           </li>
+          <li>
+            <a className={`menu-item ${activeTab === 'query_assist' ? 'active' : ''}`} onClick={() => { setActiveTab('query_assist'); setMobileSidebarOpen(false); }}>
+              <MessageSquare /> <span className="menu-label">Query Assist</span>
+            </a>
+          </li>
           {isAdmin && (
             <li>
               <a className={`menu-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setMobileSidebarOpen(false); }}>
@@ -429,6 +436,7 @@ export default function App() {
               {isAdmin && activeTab === 'monitoring' && 'Live Telemetry & Diagnostics'}
               {activeTab === 'ai' && 'AI Copilot Assistant'}
               {activeTab === 'security' && 'Security & API Settings'}
+              {activeTab === 'query_assist' && 'Query Assist'}
               {activeTab === 'inactive_sessions' && 'Inactive Sessions'}
             </h1>
             <p>
@@ -442,6 +450,7 @@ export default function App() {
               {isAdmin && activeTab === 'monitoring' && 'Live screen access for allocated Laptops and Desktops.'}
               {activeTab === 'ai' && 'OpenAI-powered assistant for natural language search, report generation, and warranty forecasts.'}
               {activeTab === 'security' && 'Manage API keys, agent tokens, and view security configurations.'}
+              {activeTab === 'query_assist' && 'Raise and track queries with team-wide collaboration and threaded discussions.'}
               {activeTab === 'inactive_sessions' && 'View laptops and desktops that have not checked in within the selected timeframe.'}
             </p>
           </div>
@@ -465,6 +474,7 @@ export default function App() {
         {isAdmin && activeTab === 'users' && <UserManagement refreshKey={usersRefreshKey} />}
         {isAdmin && activeTab === 'monitoring' && <LiveTelemetry onWatchScreen={handleWatchScreen} />}
         {activeTab === 'ai' && <AIAssistant />}
+        {activeTab === 'query_assist' && <QueryAssist />}
         {activeTab === 'security' && <SecuritySettings />}
         {activeTab === 'inactive_sessions' && <InactiveSessions assets={userAssets} onBack={() => setActiveTab('dashboard')} />}
       </main>
