@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { MessageSquare, Plus, Send, CheckCircle, ChevronDown, ChevronRight, Clock, Loader2, RefreshCw, X } from 'lucide-react';
+import { MessageSquare, Plus, Send, CheckCircle, ChevronDown, ChevronRight, Clock, Loader2, RefreshCw, X, Users, Lock, AtSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiUrl } from '../services/apiConfig';
 
@@ -16,6 +16,7 @@ interface Thread {
   solved_at?: string;
   auto_solved?: boolean;
   comment_count?: number;
+  mentioned_emails?: string;
   comments?: Comment[];
 }
 
@@ -26,6 +27,11 @@ interface Comment {
   user_name: string;
   content: string;
   created_at: string;
+}
+
+interface AppUser {
+  name: string;
+  email: string;
 }
 
 const AUTHOR_COLORS = [
@@ -54,6 +60,18 @@ export function QueryAssist() {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [solvingId, setSolvingId] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
+  const [selectedMentions, setSelectedMentions] = useState<AppUser[]>([]);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStart, setMentionStart] = useState(0);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(apiUrl('/api/query-assist/users'), {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(r => r.ok && r.json()).then(d => { if (d) setAllUsers(d); }).catch(() => {});
+  }, [token]);
 
   const fetchThreads = useCallback(async () => {
     if (!token) return;
@@ -100,6 +118,37 @@ export function QueryAssist() {
     }
   };
 
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const pos = e.target.selectionStart ?? 0;
+    setNewDescription(value);
+    const beforeCursor = value.slice(0, pos);
+    const atIndex = beforeCursor.lastIndexOf('@');
+    if (atIndex !== -1) {
+      const afterAt = value.slice(atIndex + 1, pos);
+      if (!afterAt.includes(' ') && !afterAt.includes('\n')) {
+        setMentionQuery(afterAt);
+        setMentionOpen(true);
+        setMentionStart(atIndex);
+        return;
+      }
+    }
+    setMentionOpen(false);
+  };
+
+  const selectMention = (user: AppUser) => {
+    const before = newDescription.slice(0, mentionStart);
+    const after = newDescription.slice(mentionStart + 1 + mentionQuery.length);
+    const tag = `@${user.name} `;
+    setNewDescription(before + tag + after);
+    setSelectedMentions(prev => prev.some(u => u.email === user.email) ? prev : [...prev, user]);
+    setMentionOpen(false);
+  };
+
+  const removeMention = (email: string) => {
+    setSelectedMentions(prev => prev.filter(u => u.email !== email));
+  };
+
   const handleCreateThread = async () => {
     if (!token || !newTitle.trim() || !newDescription.trim()) return;
     setSubmitting(true);
@@ -107,11 +156,16 @@ export function QueryAssist() {
       const res = await fetch(apiUrl('/api/query-assist/threads'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: newTitle.trim(), description: newDescription.trim() }),
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          description: newDescription.trim(),
+          mentioned_emails: selectedMentions.map(u => u.email),
+        }),
       });
       if (res.ok) {
         setNewTitle('');
         setNewDescription('');
+        setSelectedMentions([]);
         setShowNewThread(false);
         await fetchThreads();
       }
@@ -270,6 +324,11 @@ export function QueryAssist() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '4px' }}>
                     <span style={{ fontWeight: 500, fontSize: '15px', color: 'var(--ink)' }}>{thread.title}</span>
+                    {thread.mentioned_emails && thread.mentioned_emails !== '[]' && (
+                      <span title="Private thread" style={{ color: 'var(--charcoal)', display: 'inline-flex', alignItems: 'center' }}>
+                        <Lock size={12} />
+                      </span>
+                    )}
                     {statusBadge(thread)}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: 'var(--charcoal)' }}>
@@ -428,14 +487,48 @@ export function QueryAssist() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Description</label>
+                <label className="form-label">Description <span style={{ fontSize: '12px', color: 'var(--mute)', fontWeight: 400 }}>— Use @ to mention users for private visibility</span></label>
                 <textarea
                   className="form-control"
                   placeholder="Describe your query in detail..."
                   value={newDescription}
-                  onChange={e => setNewDescription(e.target.value)}
+                  onChange={handleDescriptionChange}
                   style={{ minHeight: '120px' }}
                 />
+                {selectedMentions.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
+                    <Users size={14} style={{ color: 'var(--charcoal)', marginRight: '4px' }} />
+                    {selectedMentions.map(u => (
+                      <span key={u.email} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', background: 'var(--surface-elevated)', borderRadius: '12px', fontSize: '12px', border: '1px solid var(--hairline-strong)' }}>
+                        <Lock size={10} />
+                        {u.name}
+                        <span style={{ cursor: 'pointer', color: 'var(--mute)', marginLeft: '2px' }} onClick={() => removeMention(u.email)}><X size={12} /></span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {mentionOpen && (
+                  <div style={{ position: 'relative', marginTop: '4px' }}>
+                    <div style={{ position: 'absolute', zIndex: 100, top: 0, left: 0, right: 0, background: 'var(--surface)', borderRadius: 'var(--border-radius-md)', border: '1px solid var(--hairline-strong)', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', maxHeight: '200px', overflowY: 'auto' }}>
+                      {allUsers
+                        .filter(u => u.email !== currentUser?.email && (u.name.toLowerCase().includes(mentionQuery.toLowerCase()) || u.email.toLowerCase().includes(mentionQuery.toLowerCase())))
+                        .slice(0, 10)
+                        .map(u => (
+                          <div key={u.email} onClick={() => selectMention(u)} style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', borderBottom: '1px solid var(--hairline)' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-elevated)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            <AtSign size={13} style={{ color: 'var(--charcoal)' }} />
+                            <span style={{ fontWeight: 500 }}>{u.name}</span>
+                            <span style={{ color: 'var(--mute)', fontSize: '12px' }}>{u.email}</span>
+                          </div>
+                        ))}
+                      {allUsers.filter(u => u.email !== currentUser?.email && (u.name.toLowerCase().includes(mentionQuery.toLowerCase()) || u.email.toLowerCase().includes(mentionQuery.toLowerCase()))).length === 0 && (
+                        <div style={{ padding: '12px', color: 'var(--charcoal)', fontSize: '13px', textAlign: 'center' }}>No users found</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="modal-footer">
