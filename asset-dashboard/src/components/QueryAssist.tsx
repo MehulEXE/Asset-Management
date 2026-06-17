@@ -91,9 +91,14 @@ export function QueryAssist() {
 
   useEffect(() => {
     fetchThreads();
-    const interval = setInterval(fetchThreads, 5000);
+    const interval = setInterval(() => {
+      fetchThreads();
+      if (expandedId) {
+        loadThreadDetail(expandedId);
+      }
+    }, 5000);
     return () => clearInterval(interval);
-  }, [fetchThreads]);
+  }, [fetchThreads, expandedId]);
 
   const loadThreadDetail = async (threadId: string) => {
     try {
