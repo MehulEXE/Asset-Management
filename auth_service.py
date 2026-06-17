@@ -153,7 +153,7 @@ class AuthService:
         return {"user": self._user_to_public(target_user)}
 
     @staticmethod
-    def _user_to_public(self, user) -> dict:
+    def _user_to_public(user) -> dict:
         meta = getattr(user, "user_metadata", {}) or {}
         return {
             "name": meta.get("name", user.email.split("@")[0] if user.email else ""),
