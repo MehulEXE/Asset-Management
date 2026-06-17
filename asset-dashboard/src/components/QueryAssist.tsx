@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { MessageSquare, Plus, Send, CheckCircle, ChevronDown, ChevronRight, Clock, Loader2, RefreshCw, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiUrl } from '../services/apiConfig';
+import { fetchProfile } from '../services/authService';
 
 interface Thread {
   id: string;
@@ -34,7 +35,8 @@ const AUTHOR_COLORS = [
   '#fb923c', '#e879f9', '#2dd4bf', '#facc15', '#818cf8',
 ];
 
-function hashColor(email: string): string {
+function hashColor(email: string, userColors?: Record<string, string>): string {
+  if (userColors?.[email]) return userColors[email];
   let hash = 0;
   for (let i = 0; i < email.length; i++) {
     hash = email.charCodeAt(i) + ((hash << 5) - hash);
@@ -54,6 +56,16 @@ export function QueryAssist() {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [solvingId, setSolvingId] = useState<string | null>(null);
+  const [userColors, setUserColors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!token) return;
+    fetchProfile(token).then(p => {
+      if (p.chat_color) {
+        setUserColors(prev => ({ ...prev, [p.email]: p.chat_color as string }));
+      }
+    }).catch(() => {});
+  }, [token]);
 
   const fetchThreads = useCallback(async () => {
     if (!token) return;
@@ -278,7 +290,7 @@ export function QueryAssist() {
                     {statusBadge(thread)}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: 'var(--charcoal)' }}>
-                    <span>by <strong style={{ color: hashColor(thread.created_by_email) }}>{thread.created_by_name}</strong></span>
+                    <span>by <strong style={{ color: hashColor(thread.created_by_email, userColors) }}>{thread.created_by_name}</strong></span>
                     <span>{new Date(thread.created_at).toLocaleString()}</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <MessageSquare size={12} /> {thread.comment_count ?? 0}
@@ -350,7 +362,7 @@ export function QueryAssist() {
                             border: '1px solid var(--hairline)',
                           }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontWeight: 600, fontSize: '13px', color: hashColor(comment.user_email) }}>
+                              <span style={{ fontWeight: 600, fontSize: '13px', color: hashColor(comment.user_email, userColors) }}>
                                 {comment.user_name}
                                 {comment.user_email === thread.created_by_email && (
                                   <span style={{ fontSize: '11px', color: 'var(--mute)', marginLeft: '6px', fontWeight: 400 }}>(author)</span>

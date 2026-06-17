@@ -116,6 +116,22 @@ def sb_delete(table: str, field: str, value: str) -> list:
     return data.data if data else []
 
 
+# ---- Profile helpers ----
+
+def get_profile(email: str) -> dict | None:
+    return sb_select_one("user_profiles", "email", email)
+
+
+def upsert_profile(email: str, updates: dict) -> dict | None:
+    record = {"email": email, **updates, "updated_at": now_iso()}
+    return sb_upsert("user_profiles", record, on_conflict="email")
+
+
+def delete_profile(email: str) -> bool:
+    r = sb_delete("user_profiles", "email", email)
+    return len(r) > 0
+
+
 class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
     def send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -213,6 +229,20 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json(200, agent)
             else:
                 self._send_json(404, {"error": "Agent not found"})
+
+        elif path == "/api/profile":
+            user = self._require_auth()
+            if not user:
+                return
+            profile = get_profile(user["email"])
+            self._send_json(200, {
+                "email": user["email"],
+                "name": user["name"],
+                "role": user["role"],
+                "nickname": (profile or {}).get("nickname", ""),
+                "chat_color": (profile or {}).get("chat_color"),
+                "avatar_url": (profile or {}).get("avatar_url"),
+            })
 
         elif len(path_parts) == 3 and path_parts[0] == "api" and path_parts[1] == "assets":
             asset_id = path_parts[2]
@@ -730,11 +760,13 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/query-assist/threads":
             user = self._require_auth()
             if user:
+                profile = get_profile(user["email"])
+                display_name = (profile or {}).get("nickname", "").strip() or user["name"]
                 rec = {
                     "title": payload.get("title", ""),
                     "description": payload.get("description", ""),
                     "created_by_email": user["email"],
-                    "created_by_name": user["name"],
+                    "created_by_name": display_name,
                     "status": "open",
                 }
                 created = sb_insert("query_assist_threads", rec)
@@ -748,10 +780,12 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 if not thread:
                     self._send_json(404, {"error": "Thread not found"})
                     return
+                profile = get_profile(user["email"])
+                display_name = (profile or {}).get("nickname", "").strip() or user["name"]
                 rec = {
                     "thread_id": thread_id,
                     "user_email": user["email"],
-                    "user_name": user["name"],
+                    "user_name": display_name,
                     "content": payload.get("content", ""),
                 }
                 created = sb_insert("query_assist_comments", rec)
@@ -801,6 +835,16 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             if token:
                 auth_service.logout(token)
             self._send_json(200, {"message": "Logged out successfully."})
+
+        elif path == "/api/profile/avatar":
+            user = self._require_auth()
+            if user:
+                avatar_base64 = payload.get("avatar_url", "")
+                if avatar_base64:
+                    upsert_profile(user["email"], {"avatar_url": avatar_base64})
+                    self._send_json(200, {"status": "success"})
+                else:
+                    self._send_json(400, {"error": "avatar_url is required"})
 
         elif path == "/api/v1/agent/screen-frame":
             agent_token = self._get_bearer_token()
@@ -1147,6 +1191,17 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 sb_update("assets", "id", existing["id"], updates)
             self._send_json(200, {"status": "success", "asset": {**existing, **updates}})
 
+        elif path == "/api/profile":
+            user = self._require_auth()
+            if not user:
+                return
+            allowed = {"nickname", "chat_color"}
+            updates = {k: v for k, v in payload.items() if k in allowed}
+            if "chat_color" in updates and updates["chat_color"] == "":
+                updates["chat_color"] = None
+            upsert_profile(user["email"], updates)
+            self._send_json(200, {"status": "success"})
+
         else:
             self._send_json(404, {"error": "Not found"})
 
@@ -1182,6 +1237,23 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json(200, {"status": "success", "message": "Asset deleted successfully"})
             else:
                 self._send_json(404, {"error": "Asset not found"})
+
+        elif path == "/api/profile/avatar":
+            user = self._require_auth()
+            if user:
+                upsert_profile(user["email"], {"avatar_url": None})
+                self._send_json(200, {"status": "success", "message": "Avatar removed"})
+
+        elif path == "/api/account":
+            user = self._require_auth()
+            if user:
+                ok = auth_service.delete_account(user["email"])
+                if ok:
+                    delete_profile(user["email"])
+                    self._send_json(200, {"status": "success", "message": "Account deleted permanently"})
+                else:
+                    self._send_json(500, {"error": "Failed to delete account"})
+
         else:
             self._send_json(404, {"error": "Not found"})
 

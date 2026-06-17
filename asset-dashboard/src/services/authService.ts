@@ -8,6 +8,15 @@ export interface User {
   created_at: string;
 }
 
+export interface UserProfile {
+  email: string;
+  name: string;
+  role: 'admin' | 'user';
+  nickname: string;
+  chat_color: string | null;
+  avatar_url: string | null;
+}
+
 export interface UserWithDevices extends User {
   device_count: number;
 }
@@ -19,6 +28,61 @@ function mapSupabaseUser(sbUser: any): User {
     role: sbUser.user_metadata?.role || 'user',
     created_at: sbUser.created_at || new Date().toISOString(),
   };
+}
+
+// ---- Profile helpers ----
+
+export async function fetchProfile(token: string): Promise<UserProfile> {
+  const res = await fetch(apiUrl('/api/profile'), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error('Failed to fetch profile');
+  }
+  return res.json();
+}
+
+export async function updateProfile(token: string, updates: { nickname?: string; chat_color?: string | null }): Promise<void> {
+  const res = await fetch(apiUrl('/api/profile'), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to update profile');
+  }
+}
+
+export async function uploadAvatar(token: string, avatarBase64: string): Promise<void> {
+  const res = await fetch(apiUrl('/api/profile/avatar'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ avatar_url: avatarBase64 }),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to upload avatar');
+  }
+}
+
+export async function deleteAvatar(token: string): Promise<void> {
+  const res = await fetch(apiUrl('/api/profile/avatar'), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error('Failed to delete avatar');
+  }
+}
+
+export async function deleteMyAccount(token: string): Promise<void> {
+  const res = await fetch(apiUrl('/api/account'), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete account');
+  }
 }
 
 export const authService = {

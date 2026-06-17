@@ -152,6 +152,27 @@ class AuthService:
         logger.info(f"User {target_email} role changed to {new_role} (by {admin_email})")
         return {"user": self._user_to_public(target_user)}
 
+    def delete_account(self, email: str) -> bool:
+        """Permanently delete a user account by email using the admin client."""
+        try:
+            client = _get_admin()
+            users_raw = client.auth.admin.list_users()
+            users_list = users_raw if isinstance(users_raw, list) else (users_raw.users if hasattr(users_raw, "users") else [])
+            target = None
+            for u in users_list:
+                if u.email == email.strip().lower():
+                    target = u
+                    break
+            if not target:
+                logger.warning(f"delete_account: user not found {email}")
+                return False
+            client.auth.admin.delete_user(target.id)
+            logger.info(f"Deleted user account: {email}")
+            return True
+        except Exception as e:
+            logger.error(f"delete_account failed for {email}: {e}")
+            return False
+
     @staticmethod
     def _user_to_public(user) -> dict:
         meta = getattr(user, "user_metadata", {}) or {}

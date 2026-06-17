@@ -32,6 +32,7 @@ import { UserManagement } from './components/UserManagement';
 import { AssetRequests } from './components/AssetRequests';
 import { InactiveSessions } from './components/InactiveSessions';
 import { QueryAssist } from './components/QueryAssist';
+import { UserProfile } from './components/UserProfile';
 import { NotificationBell } from './components/NotificationBell';
 import { LoginScreen } from './components/LoginScreen';
 import { useAuth } from './contexts/AuthContext';
@@ -401,7 +402,7 @@ export default function App() {
 
         <div className="sidebar-footer">
           <div className="sidebar-footer-content">
-            <div className="user-info" style={{ fontSize: '14px', color: 'var(--charcoal)', padding: '0 4px' }}>
+            <div className="user-info" style={{ fontSize: '14px', color: 'var(--charcoal)', padding: '0 4px', cursor: 'pointer' }} onClick={() => { setActiveTab('profile'); setMobileSidebarOpen(false); }} title="Edit profile">
               <strong>{currentUser?.name}</strong>
               <span style={{ display: 'block', fontSize: '12px', color: 'var(--mute)' }}>{currentUser?.email}</span>
             </div>
@@ -437,6 +438,7 @@ export default function App() {
               {activeTab === 'ai' && 'AI Copilot Assistant'}
               {activeTab === 'security' && 'Security & API Settings'}
               {activeTab === 'query_assist' && 'Query Assist'}
+              {activeTab === 'profile' && 'User Profile'}
               {activeTab === 'inactive_sessions' && 'Inactive Sessions'}
             </h1>
             <p>
@@ -451,6 +453,7 @@ export default function App() {
               {activeTab === 'ai' && 'OpenAI-powered assistant for natural language search, report generation, and warranty forecasts.'}
               {activeTab === 'security' && 'Manage API keys, agent tokens, and view security configurations.'}
               {activeTab === 'query_assist' && 'Raise and track queries with team-wide collaboration and threaded discussions.'}
+              {activeTab === 'profile' && 'View and edit your personal account settings.'}
               {activeTab === 'inactive_sessions' && 'View laptops and desktops that have not checked in within the selected timeframe.'}
             </p>
           </div>
@@ -476,6 +479,7 @@ export default function App() {
         {activeTab === 'ai' && <AIAssistant />}
         {activeTab === 'query_assist' && <QueryAssist />}
         {activeTab === 'security' && <SecuritySettings />}
+        {activeTab === 'profile' && <UserProfile />}
         {activeTab === 'inactive_sessions' && <InactiveSessions assets={userAssets} onBack={() => setActiveTab('dashboard')} />}
       </main>
 
