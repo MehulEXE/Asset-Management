@@ -76,6 +76,17 @@ export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [usersRefreshKey, setUsersRefreshKey] = useState(0);
   const [theme, setTheme] = useState<string>('dark');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token || !currentUser) return;
+    fetch(apiUrl('/api/profile'), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => setAvatarUrl(data.avatar_url || null))
+      .catch(() => {});
+  }, [token, currentUser]);
 
   // Unified State
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -404,10 +415,11 @@ export default function App() {
           <div className="sidebar-footer-content">
             <div className="user-info" onClick={() => { setActiveTab('profile'); setMobileSidebarOpen(false); }} title="Edit profile">
               <div className="user-avatar-sidebar">
-                {(() => {
-                  const initials = (currentUser?.name || 'U').split(' ').map(s => s[0]).join('').toUpperCase().slice(0, 2);
-                  return <span>{initials}</span>;
-                })()}
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" />
+                ) : (
+                  <span>{((currentUser?.name || 'U').split(' ').map(s => s[0]).join('').toUpperCase().slice(0, 2))}</span>
+                )}
               </div>
               <div className="user-info-text">
                 <strong>{currentUser?.name}</strong>
