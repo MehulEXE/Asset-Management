@@ -36,6 +36,35 @@ CREATE TABLE IF NOT EXISTS query_assist_comments (
 CREATE INDEX IF NOT EXISTS idx_comments_thread_id ON query_assist_comments(thread_id);
 
 ALTER TABLE query_assist_threads ADD COLUMN IF NOT EXISTS mentioned_emails TEXT DEFAULT '[]';
+
+CREATE TABLE IF NOT EXISTS announcements (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  content TEXT NOT NULL,
+  created_by_email TEXT NOT NULL,
+  created_by_name TEXT NOT NULL,
+  attachments JSON DEFAULT '[]',
+  poll JSON DEFAULT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS announcement_reactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+  user_email TEXT NOT NULL,
+  emoji TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(announcement_id, user_email, emoji)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reactions_announcement ON announcement_reactions(announcement_id);
+
+CREATE TABLE IF NOT EXISTS announcement_reads (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+  user_email TEXT NOT NULL,
+  read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(announcement_id, user_email)
+);
 """
 
 from supabase import create_client, Client
@@ -364,6 +393,43 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             user = self._require_auth()
             if user:
                 self._send_json(200, {"user": user})
+
+        elif path == "/api/announcements":
+            user = self._require_auth()
+            if not user:
+                return
+            all_rows = get_db().table("announcements").select("*").order("created_at", desc=True).execute()
+            announcements = all_rows.data if all_rows else []
+            # Fetch reactions for all announcements
+            ids = [a["id"] for a in announcements]
+            reactions_map = {}
+            reads_map = {}
+            if ids:
+                rx = get_db().table("announcement_reactions").select("*").in_("announcement_id", ids).execute()
+                for r in (rx.data or []):
+                    aid = r["announcement_id"]
+                    reactions_map.setdefault(aid, []).append(r)
+                rd = get_db().table("announcement_reads").select("*").in_("announcement_id", ids).eq("user_email", user["email"]).execute()
+                for r in (rd.data or []):
+                    reads_map[r["announcement_id"]] = True
+            for a in announcements:
+                a["reactions"] = reactions_map.get(a["id"], [])
+                a["is_read"] = a["id"] in reads_map
+            self._send_json(200, announcements)
+
+        elif path == "/api/announcements/unseen-count":
+            user = self._require_auth()
+            if not user:
+                return
+            all_ids = get_db().table("announcements").select("id").execute()
+            ids = [a["id"] for a in (all_ids.data or [])]
+            if not ids:
+                self._send_json(200, {"count": 0})
+                return
+            read_ids = get_db().table("announcement_reads").select("announcement_id").in_("announcement_id", ids).eq("user_email", user["email"]).execute()
+            read_set = set(r["announcement_id"] for r in (read_ids.data or []))
+            unseen = len([i for i in ids if i not in read_set])
+            self._send_json(200, {"count": unseen})
 
         elif path == "/api/admin/users":
             admin = self._require_admin()
@@ -845,6 +911,105 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                     self._send_json(200, {"status": "success"})
                 else:
                     self._send_json(400, {"error": "avatar_url is required"})
+
+        elif path == "/api/announcements":
+            admin = self._require_admin()
+            if not admin:
+                return
+            content = payload.get("content", "").strip()
+            if not content:
+                self._send_json(400, {"error": "Content is required"})
+                return
+            rec = {
+                "content": content,
+                "created_by_email": admin["email"],
+                "created_by_name": admin["name"],
+                "attachments": json.dumps(payload.get("attachments", [])),
+                "poll": json.dumps(payload.get("poll")) if payload.get("poll") else None,
+            }
+            created = sb_insert("announcements", rec)
+            self._send_json(201, created or {"error": "Failed to create announcement"})
+
+        elif len(path_parts) == 4 and path_parts[0] == "api" and path_parts[1] == "announcements" and path_parts[3] == "reactions":
+            user = self._require_auth()
+            if not user:
+                return
+            ann_id = path_parts[2]
+            ann = sb_select_one("announcements", "id", ann_id)
+            if not ann:
+                self._send_json(404, {"error": "Announcement not found"})
+                return
+            emoji = payload.get("emoji", "").strip()
+            if not emoji:
+                self._send_json(400, {"error": "emoji is required"})
+                return
+            existing = sb_select_one("announcement_reactions", "announcement_id", ann_id) if False else None
+            existing_list = get_db().table("announcement_reactions").select("*").eq("announcement_id", ann_id).eq("user_email", user["email"]).eq("emoji", emoji).execute()
+            existing = (existing_list.data or [None])[0]
+            if existing:
+                sb_delete("announcement_reactions", "id", existing["id"])
+                self._send_json(200, {"status": "removed"})
+            else:
+                sb_insert("announcement_reactions", {
+                    "announcement_id": ann_id,
+                    "user_email": user["email"],
+                    "emoji": emoji,
+                })
+                self._send_json(200, {"status": "added"})
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "announcements" and path_parts[3] == "poll" and path_parts[4] == "vote":
+            user = self._require_auth()
+            if not user:
+                return
+            ann_id = path_parts[2]
+            ann = sb_select_one("announcements", "id", ann_id)
+            if not ann or not ann.get("poll"):
+                self._send_json(404, {"error": "Announcement or poll not found"})
+                return
+            option_index = payload.get("option_index")
+            if option_index is None or not isinstance(option_index, int):
+                self._send_json(400, {"error": "option_index is required"})
+                return
+            poll = ann["poll"]
+            if isinstance(poll, str):
+                poll = json.loads(poll)
+            if option_index < 0 or option_index >= len(poll.get("options", [])):
+                self._send_json(400, {"error": "Invalid option index"})
+                return
+            # Check if user already voted
+            votes = poll.get("votes", [])
+            existing_vote = None
+            for v in votes:
+                if user["email"] in v.get("voters", []):
+                    existing_vote = v
+                    break
+            if existing_vote:
+                existing_vote["voters"].remove(user["email"])
+                if option_index != votes.index(existing_vote):
+                    # Changing vote to new option
+                    target = votes[option_index]
+                    target.setdefault("voters", []).append(user["email"])
+            else:
+                target = votes[option_index] if option_index < len(votes) else None
+                if not target:
+                    votes.append({"voters": [user["email"]]})
+                else:
+                    target.setdefault("voters", []).append(user["email"])
+            poll["votes"] = votes
+            sb_update("announcements", "id", ann_id, {"poll": json.dumps(poll)})
+            self._send_json(200, {"status": "success", "poll": poll})
+
+        elif len(path_parts) == 4 and path_parts[0] == "api" and path_parts[1] == "announcements" and path_parts[3] == "read":
+            user = self._require_auth()
+            if not user:
+                return
+            ann_id = path_parts[2]
+            sb_upsert("announcement_reads", {
+                "announcement_id": ann_id,
+                "user_email": user["email"],
+                "read_at": now_iso(),
+            }, on_conflict="announcement_id,user_email")
+            self._send_json(200, {"status": "success"})
 
         elif path == "/api/v1/agent/screen-frame":
             agent_token = self._get_bearer_token()

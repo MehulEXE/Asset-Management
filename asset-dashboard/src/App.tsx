@@ -34,6 +34,8 @@ import { InactiveSessions } from './components/InactiveSessions';
 import { QueryAssist } from './components/QueryAssist';
 import { UserProfile } from './components/UserProfile';
 import { NotificationBell } from './components/NotificationBell';
+import { AnnouncementBell } from './components/AnnouncementBell';
+import { Announcements } from './components/Announcements';
 import { LoginScreen } from './components/LoginScreen';
 import { useAuth } from './contexts/AuthContext';
 import { apiUrl } from './services/apiConfig';
@@ -77,6 +79,7 @@ export default function App() {
   const [usersRefreshKey, setUsersRefreshKey] = useState(0);
   const [theme, setTheme] = useState<string>('dark');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
 
   useEffect(() => {
     if (!token || !currentUser) return;
@@ -482,6 +485,7 @@ export default function App() {
             <button className="mobile-hamburger" onClick={() => setMobileSidebarOpen(true)}>
               <Menu size={20} />
             </button>
+            <AnnouncementBell onClick={() => setShowAnnouncements(true)} />
             <NotificationBell />
             <span style={{ fontSize: '14px', color: 'var(--charcoal)' }}>System Role: <strong>{isAdmin ? 'Admin' : 'Support Engineer'}</strong></span>
           </div>
@@ -505,6 +509,10 @@ export default function App() {
 
       {screenAgentId && (
         <ScreenViewer agentId={screenAgentId} hostname={screenHostname} onClose={handleStopScreen} />
+      )}
+
+      {showAnnouncements && (
+        <Announcements onClose={() => setShowAnnouncements(false)} />
       )}
     </div>
   );

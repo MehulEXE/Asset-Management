@@ -441,6 +441,32 @@ h1, h2, h3, h4, h5, h6 {
   pointer-events: none;
 }
 
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 13px;
+  height: 30px;
+  gap: 4px;
+}
+
+.btn-icon-sm {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--charcoal);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-sm);
+  transition: var(--transition);
+}
+
+.btn-icon-sm:hover {
+  color: var(--ink);
+  border-color: var(--hairline-strong);
+}
+
 /* =========================================================================
    CARDS
    ========================================================================= */
@@ -1479,6 +1505,308 @@ select.form-control {
 /* Sidebar footer user-info hover hint */
 .sidebar-footer-content .user-info:hover strong {
   color: var(--primary);
+}
+
+/* =========================================================================
+   ANNOUNCEMENTS
+   ========================================================================= */
+
+/* Bell icon */
+.announcement-bell {
+  position: relative !important;
+}
+
+.announcement-bell.has-unseen svg {
+  animation: announce-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes announce-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.announcement-bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--border-radius-full);
+  background: var(--accent-red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+/* Modal */
+.announcements-overlay {
+  z-index: 1100;
+}
+
+.announcements-modal {
+  width: 640px;
+  max-width: 94%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.announcements-body {
+  padding: 0 24px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Compose */
+.announcements-compose {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--hairline-strong);
+  margin-bottom: 16px;
+}
+
+.announce-compose-input {
+  min-height: 80px;
+  margin-bottom: 8px;
+  resize: vertical;
+}
+
+.announce-compose-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.announce-compose-images {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.announce-compose-image-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--hairline-strong);
+}
+
+.announce-compose-image-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.announce-compose-image-thumb .btn-icon-sm {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+}
+
+.announce-compose-image-thumb .btn-icon-sm:hover {
+  background: rgba(0,0,0,0.8);
+}
+
+/* Poll builder */
+.announce-poll-builder {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface-elevated);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--hairline);
+}
+
+.announce-poll-option-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.announce-poll-option-row .form-control {
+  height: 32px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.btn-secondary.active {
+  border-color: var(--ink);
+  background: var(--surface-card);
+}
+
+/* Announcement cards */
+.announcements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.announcement-card {
+  padding: 16px;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--border-radius-lg);
+}
+
+.announcement-card.unread {
+  border-left: 3px solid var(--accent-blue);
+}
+
+.announcement-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.announcement-author {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.announcement-time {
+  font-size: 11px;
+  color: var(--mute);
+}
+
+.announcement-content {
+  font-size: 14px;
+  color: var(--body);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.announcement-attachments {
+  margin-bottom: 12px;
+}
+
+.announcement-image-wrapper {
+  max-width: 100%;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+}
+
+.announcement-image {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  display: block;
+  background: var(--surface-deep);
+}
+
+/* Poll */
+.announcement-poll {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--surface-elevated);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--hairline);
+}
+
+.announcement-poll h4 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+
+.announcement-poll-option {
+  position: relative;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  border-radius: var(--border-radius-md);
+  background: var(--surface-card);
+  border: 1px solid var(--hairline-strong);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.announcement-poll-option:hover {
+  border-color: var(--ink);
+}
+
+.announcement-poll-option.voted {
+  border-color: var(--accent-blue);
+  background: rgba(59, 158, 255, 0.06);
+}
+
+.announcement-poll-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(59, 158, 255, 0.1);
+  border-radius: var(--border-radius-md);
+  transition: width 0.3s ease;
+}
+
+.announcement-poll-label {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.announcement-poll-pct {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  color: var(--charcoal);
+  font-weight: 600;
+}
+
+.announcement-poll-total {
+  font-size: 11px;
+  color: var(--mute);
+  margin-top: 4px;
+}
+
+/* Reactions */
+.announcement-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--hairline);
+}
+
+.announcement-reaction {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: var(--border-radius-full);
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline-strong);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--charcoal);
+  transition: var(--transition);
+  line-height: 1;
+}
+
+.announcement-reaction:hover {
+  border-color: var(--ink);
+}
+
+.announcement-reaction.active {
+  background: rgba(59, 158, 255, 0.1);
+  border-color: var(--accent-blue);
 }
 
 @media (max-width: 480px) {
