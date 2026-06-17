@@ -26,6 +26,20 @@ interface Comment {
   created_at: string;
 }
 
+const AUTHOR_COLORS = [
+  '#3b9eff', '#11ff99', '#ff801f', '#ffc53d', '#ff2047',
+  '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#60a5fa',
+  '#fb923c', '#e879f9', '#2dd4bf', '#facc15', '#818cf8',
+];
+
+function hashColor(email: string): string {
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) {
+    hash = email.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AUTHOR_COLORS[Math.abs(hash) % AUTHOR_COLORS.length];
+}
+
 export function QueryAssist() {
   const { currentUser, token } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -257,7 +271,7 @@ export function QueryAssist() {
                     {statusBadge(thread)}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: 'var(--charcoal)' }}>
-                    <span>by <strong>{thread.created_by_name}</strong></span>
+                    <span>by <strong style={{ color: hashColor(thread.created_by_email) }}>{thread.created_by_name}</strong></span>
                     <span>{new Date(thread.created_at).toLocaleString()}</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <MessageSquare size={12} /> {thread.comment_count ?? 0}
@@ -315,10 +329,10 @@ export function QueryAssist() {
                             border: '1px solid var(--hairline)',
                           }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontWeight: 500, fontSize: '13px', color: 'var(--ink)' }}>
+                              <span style={{ fontWeight: 600, fontSize: '13px', color: hashColor(comment.user_email) }}>
                                 {comment.user_name}
                                 {comment.user_email === thread.created_by_email && (
-                                  <span style={{ fontSize: '11px', color: 'var(--accent-blue)', marginLeft: '6px', fontWeight: 400 }}>(author)</span>
+                                  <span style={{ fontSize: '11px', color: 'var(--mute)', marginLeft: '6px', fontWeight: 400 }}>(author)</span>
                                 )}
                               </span>
                               <span style={{ fontSize: '11px', color: 'var(--mute)' }}>
