@@ -402,9 +402,17 @@ export default function App() {
 
         <div className="sidebar-footer">
           <div className="sidebar-footer-content">
-            <div className="user-info" style={{ fontSize: '14px', color: 'var(--charcoal)', padding: '0 4px', cursor: 'pointer' }} onClick={() => { setActiveTab('profile'); setMobileSidebarOpen(false); }} title="Edit profile">
-              <strong>{currentUser?.name}</strong>
-              <span style={{ display: 'block', fontSize: '12px', color: 'var(--mute)' }}>{currentUser?.email}</span>
+            <div className="user-info" onClick={() => { setActiveTab('profile'); setMobileSidebarOpen(false); }} title="Edit profile">
+              <div className="user-avatar-sidebar">
+                {(() => {
+                  const initials = (currentUser?.name || 'U').split(' ').map(s => s[0]).join('').toUpperCase().slice(0, 2);
+                  return <span>{initials}</span>;
+                })()}
+              </div>
+              <div className="user-info-text">
+                <strong>{currentUser?.name}</strong>
+                <span className="user-info-email">{currentUser?.email}</span>
+              </div>
             </div>
             <div className="footer-actions" style={{ display: 'flex', gap: '8px' }}>
               <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
