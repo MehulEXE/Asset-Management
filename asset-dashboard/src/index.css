@@ -1235,6 +1235,22 @@ select.form-control {
   font-weight: 500;
 }
 
+.user-profile-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.user-profile-settings {
+  min-width: 0;
+}
+
+.user-profile-preview {
+  position: sticky;
+  top: 32px;
+}
+
 .user-profile-avatar {
   width: 96px;
   height: 96px;
@@ -1272,6 +1288,128 @@ select.form-control {
   padding: 20px;
   background: var(--danger-light);
   margin-top: 8px;
+}
+
+/* ---- Profile Preview Card (Discord-style) ---- */
+.profile-preview-card {
+  background: var(--surface-card);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+}
+
+.profile-preview-banner {
+  height: 100px;
+}
+
+.profile-preview-body {
+  padding: 0 24px 24px;
+  margin-top: -48px;
+}
+
+.profile-preview-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--surface-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.profile-preview-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-preview-name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.profile-preview-nickname {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.profile-preview-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--charcoal);
+  margin-bottom: 6px;
+}
+
+.profile-preview-detail svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.profile-preview-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--mute);
+  margin: 20px 0 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+
+/* Chat bubble preview */
+.preview-chat-bubble {
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: var(--border-radius-md);
+  padding: 12px 14px;
+}
+
+.preview-chat-author {
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-chat-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: var(--primary);
+  color: var(--primary-on);
+  padding: 1px 6px;
+  border-radius: var(--border-radius-sm);
+  letter-spacing: 0.3px;
+}
+
+.preview-chat-time {
+  font-size: 11px;
+  color: var(--mute);
+  margin-top: 2px;
+}
+
+.preview-chat-content {
+  font-size: 13px;
+  color: var(--body);
+  margin-top: 6px;
+  line-height: 1.5;
 }
 
 /* Sidebar footer user-info hover hint */
