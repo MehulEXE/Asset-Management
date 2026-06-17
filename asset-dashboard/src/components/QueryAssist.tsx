@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { MessageSquare, Plus, Send, CheckCircle, ChevronDown, ChevronRight, Clock, Loader2, RefreshCw, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiUrl } from '../services/apiConfig';
@@ -283,8 +285,22 @@ export function QueryAssist() {
               {expandedId === thread.id && expandedThread && (
                 <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--hairline)', cursor: 'default' }}>
                   {/* Description */}
-                  <div style={{ padding: '12px 16px', background: 'var(--surface-elevated)', borderRadius: 'var(--border-radius-md)', marginBottom: '16px', fontSize: '14px', color: 'var(--body)', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                    {expandedThread.description}
+                  <div style={{ padding: '12px 16px', background: 'var(--surface-elevated)', borderRadius: 'var(--border-radius-md)', marginBottom: '16px', fontSize: '14px', color: 'var(--body)', lineHeight: '1.6' }}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                      a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--link)', textDecoration: 'underline' }}>{children}</a>,
+                      code: ({ className, children, ...props }) => {
+                        const isInline = !className;
+                        if (isInline) {
+                          return <code style={{ background: 'var(--surface-deep)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px', fontFamily: 'var(--font-mono)' }}>{children}</code>;
+                        }
+                        return <pre style={{ background: 'var(--surface-deep)', padding: '12px 16px', borderRadius: 'var(--border-radius-md)', overflow: 'auto', fontSize: '13px', fontFamily: 'var(--font-mono)', border: '1px solid var(--hairline)' }}><code className={className} {...props}>{children}</code></pre>;
+                      },
+                      ul: ({ children }) => <ul style={{ paddingLeft: '20px', margin: '4px 0' }}>{children}</ul>,
+                      ol: ({ children }) => <ol style={{ paddingLeft: '20px', margin: '4px 0' }}>{children}</ol>,
+                      blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid var(--hairline-strong)', paddingLeft: '12px', margin: '8px 0', color: 'var(--charcoal)' }}>{children}</blockquote>,
+                    }}>
+                      {expandedThread.description}
+                    </ReactMarkdown>
                   </div>
 
                   {/* Solved button for raiser */}
@@ -339,8 +355,22 @@ export function QueryAssist() {
                                 {new Date(comment.created_at).toLocaleString()}
                               </span>
                             </div>
-                            <div style={{ fontSize: '14px', color: 'var(--body)', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                              {comment.content}
+                            <div style={{ fontSize: '14px', color: 'var(--body)', lineHeight: '1.6' }}>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                                a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--link)', textDecoration: 'underline' }}>{children}</a>,
+                                code: ({ className, children, ...props }) => {
+                                  const isInline = !className;
+                                  if (isInline) {
+                                    return <code style={{ background: 'var(--surface-deep)', padding: '2px 6px', borderRadius: '4px', fontSize: '13px', fontFamily: 'var(--font-mono)' }}>{children}</code>;
+                                  }
+                                  return <pre style={{ background: 'var(--surface-deep)', padding: '12px 16px', borderRadius: 'var(--border-radius-md)', overflow: 'auto', fontSize: '13px', fontFamily: 'var(--font-mono)', border: '1px solid var(--hairline)' }}><code className={className} {...props}>{children}</code></pre>;
+                                },
+                                ul: ({ children }) => <ul style={{ paddingLeft: '20px', margin: '4px 0' }}>{children}</ul>,
+                                ol: ({ children }) => <ol style={{ paddingLeft: '20px', margin: '4px 0' }}>{children}</ol>,
+                                blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid var(--hairline-strong)', paddingLeft: '12px', margin: '8px 0', color: 'var(--charcoal)' }}>{children}</blockquote>,
+                              }}>
+                                {comment.content}
+                              </ReactMarkdown>
                             </div>
                           </div>
                         ))}
