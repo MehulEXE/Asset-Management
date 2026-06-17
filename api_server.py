@@ -924,8 +924,8 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "content": content,
                 "created_by_email": admin["email"],
                 "created_by_name": admin["name"],
-                "attachments": json.dumps(payload.get("attachments", [])),
-                "poll": json.dumps(payload.get("poll")) if payload.get("poll") else None,
+                "attachments": payload.get("attachments", []),
+                "poll": payload.get("poll") if payload.get("poll") else None,
             }
             created = sb_insert("announcements", rec)
             self._send_json(201, created or {"error": "Failed to create announcement"})
@@ -996,7 +996,7 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 else:
                     target.setdefault("voters", []).append(user["email"])
             poll["votes"] = votes
-            sb_update("announcements", "id", ann_id, {"poll": json.dumps(poll)})
+            sb_update("announcements", "id", ann_id, {"poll": poll})
             self._send_json(200, {"status": "success", "poll": poll})
 
         elif len(path_parts) == 4 and path_parts[0] == "api" and path_parts[1] == "announcements" and path_parts[3] == "read":
@@ -1004,11 +1004,16 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             if not user:
                 return
             ann_id = path_parts[2]
-            sb_upsert("announcement_reads", {
-                "announcement_id": ann_id,
-                "user_email": user["email"],
-                "read_at": now_iso(),
-            }, on_conflict="announcement_id,user_email")
+            existing_list = get_db().table("announcement_reads").select("*").eq("announcement_id", ann_id).eq("user_email", user["email"]).execute()
+            existing = (existing_list.data or [None])[0]
+            if existing:
+                sb_update("announcement_reads", "id", existing["id"], {"read_at": now_iso()})
+            else:
+                sb_insert("announcement_reads", {
+                    "announcement_id": ann_id,
+                    "user_email": user["email"],
+                    "read_at": now_iso(),
+                })
             self._send_json(200, {"status": "success"})
 
         elif path == "/api/v1/agent/screen-frame":

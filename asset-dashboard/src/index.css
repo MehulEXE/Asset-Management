@@ -1549,30 +1549,31 @@ select.form-control {
 }
 
 .announcements-modal {
-  width: 640px;
+  width: 800px;
   max-width: 94%;
-  max-height: 88vh;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
 }
 
 .announcements-body {
-  padding: 0 24px 24px;
+  padding: 4px 28px 28px;
   overflow-y: auto;
   flex: 1;
 }
 
 /* Compose */
 .announcements-compose {
-  padding: 16px 0;
+  padding: 20px 0;
   border-bottom: 1px solid var(--hairline-strong);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .announce-compose-input {
-  min-height: 80px;
+  min-height: 120px;
   margin-bottom: 8px;
   resize: vertical;
+  font-size: 14px;
 }
 
 .announce-compose-actions {
