@@ -79,21 +79,24 @@ class APIClient:
             logger.error(f"Network error during check-in: {e}")
             return False
 
-    def heartbeat(self, payload: dict) -> bool:
-        """Sends agent performance statistics to /api/v1/agent/heartbeat."""
+    def heartbeat(self, payload: dict) -> dict | None:
+        """Sends agent performance statistics to /api/v1/agent/heartbeat.
+
+        Returns the response JSON dict on success, or None on failure.
+        """
         url = f"{self.base_url}/api/v1/agent/heartbeat"
         logger.debug(f"Sending heartbeat to: {url}")
         try:
             response = self.session.post(url, json=payload, verify=self.verify_certs, timeout=15)
             if response.status_code in [200, 201]:
                 logger.debug("Heartbeat successfully sent.")
-                return True
+                return response.json()
             else:
                 logger.error(f"API returned failure status for heartbeat: {response.status_code} - {response.text}")
-                return False
+                return None
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error during heartbeat: {e}")
-            return False
+            return None
 
     def screen_share_checkin(self, agent_id: str, hostname: str) -> bool | dict:
         """Checks in with the screen sharer endpoint and returns screen share status."""

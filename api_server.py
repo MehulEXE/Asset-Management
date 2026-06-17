@@ -46,6 +46,7 @@ logger = logging.getLogger("ITAM_API_Server")
 _screen_frames: dict[str, str] = {}
 _screen_active: dict[str, bool] = {}
 _screen_sharer_agents: dict[str, dict] = {}
+_pending_scan: set = set()
 
 PORT = int(os.environ.get("PORT", 8000))
 
@@ -534,6 +535,11 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             }
             sb_insert("asset_history", history_entry)
 
+            # Clear any pending scan flag as the agent has now reported in
+            if agent_id and agent_id in _pending_scan:
+                _pending_scan.discard(agent_id)
+                logger.info(f"Agent {agent_id} checked in, cleared pending scan flag.")
+
             self._send_json(200, {"status": "success", "message": "Check-in successful"})
 
         elif path == "/api/v1/agent/heartbeat":
@@ -595,7 +601,12 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            self._send_json(200, {"status": "success"})
+            response_data = {"status": "success"}
+            if agent_agent_id and agent_agent_id in _pending_scan:
+                _pending_scan.discard(agent_agent_id)
+                response_data["scan_now"] = True
+                logger.info(f"Scan flagged for agent {agent_agent_id}, issuing immediate scan directive.")
+            self._send_json(200, response_data)
 
         elif path == "/api/agents/register":
             assigner_name = payload.get("employee_name", "Unknown")
@@ -687,8 +698,15 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"status": "success", "group": created})
 
         elif path == "/api/agent/scan":
-            logger.info("Agent scan requested via dashboard. Remote agents self-report on their own schedule.")
-            self._send_json(200, {"status": "success", "message": "Scan signal sent. Agents will check in on their next cycle."})
+            user = self._require_admin()
+            if not user:
+                return
+            agents_data = get_db().table("agents").select("agent_id").not_.is_("last_checkin", "null").execute()
+            agents = agents_data.data if agents_data else []
+            for a in agents:
+                _pending_scan.add(a["agent_id"])
+            logger.info(f"Agent scan requested by admin. {len(agents)} agent(s) flagged for immediate scan.")
+            self._send_json(200, {"status": "success", "message": f"Scan signal sent to {len(agents)} agent(s). They will check in within seconds."})
 
         elif path == "/api/agent/restart":
             logger.info("Agent restart requested via dashboard.")

@@ -503,12 +503,12 @@ export const ActiveAgents: React.FC = () => {
               {isScanning ? (
                 <>
                   <span className="animate-spin" style={{ width: '12px', height: '12px', border: '2px solid white', borderTop: '2px solid transparent', borderRadius: '50%', display: 'inline-block' }} />
-                  Scanning Node...
+                  Scanning Agents...
                 </>
               ) : (
                 <>
                   <Activity size={14} />
-                  Auto Scanning
+                  Scan Now
                 </>
               )}
             </button>

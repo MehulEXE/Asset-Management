@@ -205,8 +205,11 @@ class AssetAgent:
             logger.error(f"Critical error during full inventory run: {e}", exc_info=True)
             return False
 
-    def perform_heartbeat(self, force_offline: bool = False) -> bool:
-        """Collects current system usage statistics and transmits the heartbeat."""
+    def perform_heartbeat(self, force_offline: bool = False) -> dict | None:
+        """Collects current system usage statistics and transmits the heartbeat.
+
+        Returns the server response dict on success, or None on failure.
+        """
         logger.debug("Generating system heartbeat metrics...")
         try:
             # Measure usages
@@ -260,20 +263,20 @@ class AssetAgent:
 
             if force_offline:
                 self.queue.enqueue("heartbeat", payload)
-                return False
+                return None
 
             # Process cached payloads first
             self.process_offline_queue()
 
-            success = self.client.heartbeat(payload)
-            if not success:
+            resp = self.client.heartbeat(payload)
+            if resp is None:
                 logger.warning("Heartbeat transmission failed. Caching payload locally.")
                 self.queue.enqueue("heartbeat", payload)
 
-            return success
+            return resp
         except Exception as e:
             logger.error(f"Critical error during heartbeat run: {e}", exc_info=True)
-            return False
+            return None
 
     def _run_screen_sharer(self):
         try:
@@ -361,8 +364,13 @@ def main():
                 
             # Heartbeat schedule
             if now - last_heartbeat >= (heartbeat_mins * 60):
-                agent.perform_heartbeat(force_offline=args.force_offline)
+                hb_resp = agent.perform_heartbeat(force_offline=args.force_offline)
                 last_heartbeat = now
+                # Check if server requested an immediate full scan
+                if isinstance(hb_resp, dict) and hb_resp.get("scan_now"):
+                    logger.info("Server requested immediate scan. Running full inventory now.")
+                    agent.perform_full_inventory(force_offline=args.force_offline)
+                    last_checkin = now
                 
             time.sleep(1)
     except KeyboardInterrupt:
