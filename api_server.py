@@ -91,9 +91,13 @@ def sb_select_one(table: str, field: str, value: str) -> dict | None:
 
 
 def sb_insert(table: str, record: dict) -> dict | None:
-    data = get_db().table(table).insert(record).execute()
-    rows = data.data if data else []
-    return rows[0] if rows else None
+    try:
+        data = get_db().table(table).insert(record).execute()
+        rows = data.data if data else []
+        return rows[0] if rows else None
+    except Exception as e:
+        logger.error(f"sb_insert failed on {table}: {e}")
+        return None
 
 
 def sb_upsert(table: str, record: dict, on_conflict: str) -> dict | None:
@@ -348,19 +352,10 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             if user:
                 rows = get_db().table("query_assist_threads").select("*").order("created_at", desc=True).execute()
                 threads = rows.data if rows else []
-                user_email = user["email"]
-                filtered = []
                 for t in threads:
-                    mentioned_raw = t.get("mentioned_emails", "[]")
-                    mentioned = json.loads(mentioned_raw) if isinstance(mentioned_raw, str) else (mentioned_raw or [])
-                    is_public = not mentioned
-                    is_creator = user_email == t["created_by_email"]
-                    is_mentioned = user_email in mentioned
-                    if is_public or is_creator or is_mentioned:
-                        cnt = get_db().table("query_assist_comments").select("id", count="exact").eq("thread_id", t["id"]).execute()
-                        t["comment_count"] = cnt.count if cnt and hasattr(cnt, 'count') else 0
-                        filtered.append(t)
-                self._send_json(200, filtered)
+                    cnt = get_db().table("query_assist_comments").select("id", count="exact").eq("thread_id", t["id"]).execute()
+                    t["comment_count"] = cnt.count if cnt and hasattr(cnt, 'count') else 0
+                self._send_json(200, threads)
 
         elif len(path_parts) == 4 and path_parts[0] == "api" and path_parts[1] == "query-assist" and path_parts[2] == "threads":
             user = self._require_auth()
@@ -368,12 +363,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 thread_id = path_parts[3]
                 thread = sb_select_one("query_assist_threads", "id", thread_id)
                 if thread:
-                    mentioned_raw = thread.get("mentioned_emails", "[]")
-                    mentioned = json.loads(mentioned_raw) if isinstance(mentioned_raw, str) else (mentioned_raw or [])
-                    user_email = user["email"]
-                    if mentioned and user_email != thread["created_by_email"] and user_email not in mentioned:
-                        self._send_json(403, {"error": "You are not mentioned in this private thread"})
-                        return
                     comments_data = get_db().table("query_assist_comments").select("*").eq("thread_id", thread_id).order("created_at").execute()
                     thread["comments"] = comments_data.data if comments_data else []
                     self._send_json(200, thread)
@@ -407,13 +396,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                     "warranty_end": r.get("warranty_end", ""),
                 })
             self._send_json(200, out)
-
-        elif path == "/api/query-assist/users":
-            user = self._require_auth()
-            if user:
-                users = auth_service.list_users()
-                result = [{"name": u.get("name", ""), "email": u["email"]} for u in users if u.get("email")]
-                self._send_json(200, result)
 
         elif path == "/api/notifications":
             user = self._require_auth()
@@ -748,14 +730,12 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/query-assist/threads":
             user = self._require_auth()
             if user:
-                mentioned = payload.get("mentioned_emails", [])
                 rec = {
                     "title": payload.get("title", ""),
                     "description": payload.get("description", ""),
                     "created_by_email": user["email"],
                     "created_by_name": user["name"],
                     "status": "open",
-                    "mentioned_emails": json.dumps(mentioned),
                 }
                 created = sb_insert("query_assist_threads", rec)
                 self._send_json(201, created or {"error": "Failed to create thread"})
@@ -767,20 +747,15 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 thread = sb_select_one("query_assist_threads", "id", thread_id)
                 if not thread:
                     self._send_json(404, {"error": "Thread not found"})
-                else:
-                    mentioned_raw = thread.get("mentioned_emails", "[]")
-                    mentioned = json.loads(mentioned_raw) if isinstance(mentioned_raw, str) else (mentioned_raw or [])
-                    if mentioned and user["email"] != thread["created_by_email"] and user["email"] not in mentioned:
-                        self._send_json(403, {"error": "You are not mentioned in this private thread"})
-                        return
-                    rec = {
-                        "thread_id": thread_id,
-                        "user_email": user["email"],
-                        "user_name": user["name"],
-                        "content": payload.get("content", ""),
-                    }
-                    created = sb_insert("query_assist_comments", rec)
-                    self._send_json(201, created or {"error": "Failed to add comment"})
+                    return
+                rec = {
+                    "thread_id": thread_id,
+                    "user_email": user["email"],
+                    "user_name": user["name"],
+                    "content": payload.get("content", ""),
+                }
+                created = sb_insert("query_assist_comments", rec)
+                self._send_json(201, created or {"error": "Failed to add comment"})
 
         elif path == "/api/asset-requests":
             user = self._require_auth()
