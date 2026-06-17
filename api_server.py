@@ -701,12 +701,21 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             user = self._require_admin()
             if not user:
                 return
-            agents_data = get_db().table("agents").select("agent_id").not_.is_("last_checkin", "null").execute()
-            agents = agents_data.data if agents_data else []
+            # Only flag online agents for scan; offline ones can't respond
+            online = get_db().table("agents").select("agent_id,hostname,status").eq("status", "Online").execute()
+            agents = online.data if online else []
+            # Immediately mark agents with stale heartbeats as Offline
+            stale_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+            stale = get_db().table("agents").select("id,agent_id").eq("status", "Online").lt("last_checkin", stale_cutoff).execute()
+            for s in (stale.data or []):
+                sb_update("agents", "id", s["id"], {"status": "Offline", "offline_since": now_iso()})
+            # Fetch fresh list after status updates
+            online = get_db().table("agents").select("agent_id,hostname,status").eq("status", "Online").execute()
+            agents = online.data if online else []
             for a in agents:
                 _pending_scan.add(a["agent_id"])
-            logger.info(f"Agent scan requested by admin. {len(agents)} agent(s) flagged for immediate scan.")
-            self._send_json(200, {"status": "success", "message": f"Scan signal sent to {len(agents)} agent(s). They will check in within seconds."})
+            logger.info(f"Agent scan: {len(agents)} online agent(s) flagged, {len(stale.data or [])} stale agent(s) marked offline.")
+            self._send_json(200, {"status": "success", "message": f"Scan signal sent to {len(agents)} online agent(s). {len(stale.data or [])} stale agent(s) marked offline."})
 
         elif path == "/api/agent/restart":
             logger.info("Agent restart requested via dashboard.")
