@@ -62,7 +62,6 @@ export function QueryAssist() {
   }, [fetchThreads]);
 
   const loadThreadDetail = async (threadId: string) => {
-    if (threadDetails[threadId]) return;
     try {
       const res = await fetch(apiUrl(`/api/query-assist/threads/${threadId}`), {
         headers: { Authorization: `Bearer ${token}` },
@@ -119,10 +118,6 @@ export function QueryAssist() {
       });
       if (res.ok) {
         await loadThreadDetail(threadId);
-        const detail = threadDetails[threadId];
-        if (detail) {
-          setThreadDetails(prev => ({ ...prev, [threadId]: { ...detail } }));
-        }
       }
     } catch {
       // silent
