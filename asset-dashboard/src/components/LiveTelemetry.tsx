@@ -62,7 +62,7 @@ export function LiveTelemetry({ onWatchScreen }: LiveTelemetryProps) {
           </div>
           <div>
             <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>Live Screen Access</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Click "Watch Screen" to view the live desktop of any allocated Laptop or Desktop.</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Click "Request Screen Access" to ask for remote desktop access to any allocated Laptop or Desktop. The user must accept the request.</p>
           </div>
         </div>
       </div>
@@ -104,7 +104,7 @@ export function LiveTelemetry({ onWatchScreen }: LiveTelemetryProps) {
                 onClick={() => handleWatch(device)}
                 disabled={watchingId === device.asset_id}
               >
-                {watchingId === device.asset_id ? <><Loader2 size={16} className="animate-spin" /> Connecting...</> : <><MonitorPlay size={16} /> Watch Screen</>}
+                {watchingId === device.asset_id ? <><Loader2 size={16} className="animate-spin" /> Requesting...</> : <><MonitorPlay size={16} /> Request Screen Access</>}
               </button>
             </div>
           ))}

@@ -120,6 +120,16 @@ class APIClient:
             logger.error(f"Network error sending screen frame: {e}")
             return False
 
+    def send_consent(self, agent_id: str, consent: bool) -> bool:
+        """Sends user consent (accept/decline) response for screen share request."""
+        url = f"{self.base_url}/api/v1/agent/screen-consent"
+        try:
+            response = self.session.post(url, json={"agent_id": agent_id, "consent": consent}, verify=self.verify_certs, timeout=10)
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending consent: {e}")
+            return False
+
     def screen_share_stop_ack(self, agent_id: str) -> bool:
         """Acknowledges screen share stop to the API server."""
         url = f"{self.base_url}/api/v1/agent/screen-share-stop-ack"

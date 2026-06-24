@@ -281,7 +281,6 @@ class AssetAgent:
     def _run_screen_sharer(self):
         try:
             from screen_capture import ScreenCapture
-            import plyer
         except ImportError as e:
             logger.warning(f"Screen sharing dependencies not available: {e}")
             return
@@ -293,16 +292,25 @@ class AssetAgent:
         while True:
             try:
                 status = self.client.screen_share_checkin(agent_id, hostname)
-                if isinstance(status, dict) and status.get("active"):
-                    logger.info("Screen share requested, starting capture...")
-                    try:
-                        plyer.notification.notify(
-                            title="IT Asset Management",
-                            message="Your IT administrator is viewing your screen \U0001f441",
-                            timeout=5,
-                        )
-                    except Exception as notify_err:
-                        logger.warning(f"Failed to show notification: {notify_err}")
+                if not isinstance(status, dict):
+                    time.sleep(2)
+                    continue
+
+                if status.get("pending") and not status.get("active"):
+                    logger.info("Screen share consent required, showing dialog...")
+                    from consent_popup import show_consent_dialog
+                    consent = show_consent_dialog(timeout=60)
+                    if consent is True:
+                        logger.info("User ACCEPTED screen share")
+                        self.client.send_consent(agent_id, True)
+                    else:
+                        logger.info("User DECLINED screen share")
+                        self.client.send_consent(agent_id, False)
+                        time.sleep(2)
+                    continue
+
+                if status.get("active"):
+                    logger.info("Screen share active, starting capture...")
                     while True:
                         frame = capturer.capture_frame(include_cursor=True)
                         if frame:

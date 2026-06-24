@@ -76,6 +76,7 @@ logger = logging.getLogger("ITAM_API_Server")
 
 _screen_frames: dict[str, str] = {}
 _screen_active: dict[str, bool] = {}
+_screen_pending: dict[str, bool] = {}
 _screen_sharer_agents: dict[str, dict] = {}
 _pending_scan: set = set()
 
@@ -503,7 +504,18 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
         elif len(path_parts) == 4 and path_parts[0] == "api" and path_parts[1] == "screen" and path_parts[2] == "frame":
             agent_id = path_parts[3]
             frame = _screen_frames.get(agent_id)
-            self._send_json(200, {"frame": frame, "active": _screen_active.get(agent_id, False)})
+            self._send_json(200, {
+                "frame": frame if _screen_active.get(agent_id, False) else None,
+                "active": _screen_active.get(agent_id, False),
+                "pending": _screen_pending.get(agent_id, False),
+            })
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "screen" and path_parts[2] == "request-status":
+            agent_id = path_parts[4]
+            self._send_json(200, {
+                "pending": _screen_pending.get(agent_id, False),
+                "active": _screen_active.get(agent_id, False),
+            })
 
         elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "agent" and path_parts[3] == "screen-share-status":
             agent_id = path_parts[4]
@@ -1016,6 +1028,40 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 })
             self._send_json(200, {"status": "success"})
 
+        elif path == "/api/v1/agent/screen-consent":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
+            agent_id = payload.get("agent_id")
+            consent = payload.get("consent")
+            if agent_id and consent is not None:
+                if consent:
+                    _screen_active[agent_id] = True
+                    _screen_pending[agent_id] = False
+                    logger.info(f"Screen share consent GRANTED for agent {agent_id}")
+                else:
+                    _screen_pending[agent_id] = False
+                    logger.info(f"Screen share consent DENIED for agent {agent_id}")
+                    # Notify admin user if we can find one
+                    asset = sb_select_one("assets", "asset_id", agent_id)
+                    if not asset:
+                        agent_rec = sb_select_one("agents", "agent_id", agent_id)
+                        if agent_rec:
+                            asset = sb_select_one("assets", "mac_address", agent_rec.get("mac_address", ""))
+                    if asset and asset.get("employee_email"):
+                        admins = get_db().table("user_profiles").select("email").eq("role", "admin").execute()
+                        for adm in (admins.data or []):
+                            sb_insert("notifications", {
+                                "user_email": adm["email"],
+                                "title": "Screen Share Declined",
+                                "message": f"User declined screen share request for {asset.get('hostname', agent_id)}.",
+                                "type": "screen_share_declined",
+                            })
+                self._send_json(200, {"status": "ok"})
+            else:
+                self._send_json(400, {"error": "agent_id and consent required"})
+
         elif path == "/api/v1/agent/screen-frame":
             agent_token = self._get_bearer_token()
             if not agent_token or agent_token != AGENT_SECRET:
@@ -1042,7 +1088,11 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                     "hostname": hostname or "Unknown",
                     "last_checkin": now_iso(),
                 }
-                self._send_json(200, {"status": "ok", "active": _screen_active.get(agent_id, False)})
+                self._send_json(200, {
+                    "status": "ok",
+                    "active": _screen_active.get(agent_id, False),
+                    "pending": _screen_pending.get(agent_id, False),
+                })
             else:
                 self._send_json(400, {"error": "agent_id required"})
 
@@ -1054,6 +1104,7 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             agent_id = payload.get("agent_id")
             if agent_id:
                 _screen_active[agent_id] = False
+                _screen_pending[agent_id] = False
                 _screen_frames.pop(agent_id, None)
                 self._send_json(200, {"status": "ok"})
             else:
@@ -1063,7 +1114,8 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             admin = self._require_admin()
             if admin:
                 agent_id = path_parts[2]
-                _screen_active[agent_id] = True
+                _screen_pending[agent_id] = True
+                _screen_active[agent_id] = False
                 hostname = payload.get("hostname", agent_id)
                 asset = sb_select_one("assets", "asset_id", agent_id)
                 if not asset:
@@ -1074,17 +1126,18 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 if user_email:
                     sb_insert("notifications", {
                         "user_email": user_email,
-                        "title": "Admin is Watching 👁️",
-                        "message": f"Your IT administrator is viewing your screen on {hostname}.",
-                        "type": "screen_share",
+                        "title": "Screen Share Requested",
+                        "message": f"Your IT administrator has requested screen access to {hostname}. Please accept or decline the popup on your screen.",
+                        "type": "screen_share_request",
                     })
-                self._send_json(200, {"status": "screen_share_started"})
+                self._send_json(200, {"status": "screen_share_requested"})
 
         elif len(path_parts) == 4 and path_parts[0] == "api" and path_parts[1] == "screen" and path_parts[3] == "stop":
             admin = self._require_admin()
             if admin:
                 agent_id = path_parts[2]
                 _screen_active[agent_id] = False
+                _screen_pending[agent_id] = False
                 _screen_frames.pop(agent_id, None)
                 self._send_json(200, {"status": "screen_share_stopped"})
 
