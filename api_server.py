@@ -815,21 +815,27 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             user = self._require_admin()
             if not user:
                 return
-            # Only flag online agents for scan; offline ones can't respond
-            online = get_db().table("agents").select("agent_id,hostname,status").eq("status", "Online").execute()
-            agents = online.data if online else []
-            # Immediately mark agents with stale heartbeats as Offline
-            stale_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
-            stale = get_db().table("agents").select("id,agent_id").eq("status", "Online").lt("last_checkin", stale_cutoff).execute()
-            for s in (stale.data or []):
-                sb_update("agents", "id", s["id"], {"status": "Offline", "offline_since": now_iso()})
-            # Fetch fresh list after status updates
-            online = get_db().table("agents").select("agent_id,hostname,status").eq("status", "Online").execute()
-            agents = online.data if online else []
-            for a in agents:
-                _pending_scan.add(a["agent_id"])
-            logger.info(f"Agent scan: {len(agents)} online agent(s) flagged, {len(stale.data or [])} stale agent(s) marked offline.")
-            self._send_json(200, {"status": "success", "message": f"Scan signal sent to {len(agents)} online agent(s). {len(stale.data or [])} stale agent(s) marked offline."})
+            fresh_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+            all_agents = get_db().table("agents").select("*").execute()
+            online_count = 0
+            offline_count = 0
+            for agent in all_agents.data or []:
+                last_seen = agent.get("last_checkin", "")
+                is_fresh = last_seen >= fresh_cutoff if last_seen else False
+                new_status = "Online" if is_fresh else "Offline"
+                if new_status != agent.get("status"):
+                    updates = {
+                        "status": new_status,
+                        "offline_since": None if is_fresh else (agent.get("offline_since") or now_iso()),
+                    }
+                    sb_update("agents", "id", agent["id"], updates)
+                if is_fresh:
+                    _pending_scan.add(agent["agent_id"])
+                    online_count += 1
+                else:
+                    offline_count += 1
+            logger.info(f"Agent scan: {online_count} online, {offline_count} offline")
+            self._send_json(200, {"status": "success", "message": f"Scan complete. {online_count} agent(s) online, {offline_count} agent(s) offline."})
 
         elif path == "/api/agent/restart":
             logger.info("Agent restart requested via dashboard.")
