@@ -734,10 +734,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json(404, {"status": "error", "message": "Agent not found"})
                 return
 
-            sb_update("agents", "id", agent["id"], {
-                "registration_status": "Registered",
-            })
-
             existing_asset = (sb_select_one("assets", "asset_id", agent["agent_id"]) or
                               sb_select_one("assets", "mac_address", agent["mac_address"]))
             asset_rec = {
@@ -771,18 +767,29 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "warranty_expiry": payload.get("warranty_expiry", ""),
                 "vendor_name": payload.get("vendor_name", ""),
             }
-            # Try to add optional session fields if they exist on the agent
             for opt in ["logged_in_user", "last_login_time"]:
                 if agent.get(opt):
                     asset_rec[opt] = agent[opt]
+
             if existing_asset:
                 sb_update("assets", "id", existing_asset["id"], asset_rec)
                 created_asset = existing_asset
             else:
-                created_asset = sb_insert("assets", asset_rec)
-                if not created_asset:
-                    self._send_json(500, {"status": "error", "message": "Failed to create asset record in database. Check server logs for details."})
+                try:
+                    data = get_db().table("assets").insert(asset_rec).execute()
+                    rows = data.data if data else []
+                    created_asset = rows[0] if rows else None
+                    if not created_asset:
+                        self._send_json(500, {"status": "error", "message": "Database returned empty result after insert"})
+                        return
+                except Exception as e:
+                    logger.error(f"Asset insert failed: {e}")
+                    self._send_json(500, {"status": "error", "message": f"Asset insert failed: {str(e)}"})
                     return
+
+            sb_update("agents", "id", agent["id"], {
+                "registration_status": "Registered",
+            })
 
             history_entry = {
                 "event_type": "Allocation",
