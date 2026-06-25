@@ -347,7 +347,7 @@ export const ActiveAgents: React.FC = () => {
   // View registered device details drawer
   const openDeviceDetails = async (agent: Agent) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/assets/${agent.id}`);
+      const res = await fetch(`${API_BASE_URL}/api/assets/${agent.agent_id}`);
       if (res.ok) {
         const data = await res.json();
         setDetailDrawerAgent(data);

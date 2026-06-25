@@ -780,6 +780,9 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 created_asset = existing_asset
             else:
                 created_asset = sb_insert("assets", asset_rec)
+                if not created_asset:
+                    self._send_json(500, {"status": "error", "message": "Failed to create asset record in database. Check server logs for details."})
+                    return
 
             history_entry = {
                 "event_type": "Allocation",
