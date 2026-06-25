@@ -767,10 +767,6 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "warranty_expiry": payload.get("warranty_expiry", ""),
                 "vendor_name": payload.get("vendor_name", ""),
             }
-            for opt in ["logged_in_user", "last_login_time"]:
-                if agent.get(opt):
-                    asset_rec[opt] = agent[opt]
-
             if existing_asset:
                 sb_update("assets", "id", existing_asset["id"], asset_rec)
                 created_asset = existing_asset
