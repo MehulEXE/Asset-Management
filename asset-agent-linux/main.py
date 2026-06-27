@@ -274,20 +274,8 @@ class AssetAgent:
                     continue
 
                 if status.get("pending") and not status.get("active"):
-                    logger.info("Screen share consent required, showing dialog...")
-                    try:
-                        from consent_dialog import show_consent_dialog
-                        consent = show_consent_dialog(timeout=60)
-                    except ImportError:
-                        logger.warning("Consent dialog not available, declining by default")
-                        consent = True
-                    if consent is True:
-                        logger.info("User ACCEPTED screen share")
-                        self.client.send_consent(agent_id, True)
-                    else:
-                        logger.info("User DECLINED screen share")
-                        self.client.send_consent(agent_id, False)
-                        time.sleep(2)
+                    logger.info("Screen share request received, auto-accepting...")
+                    self.client.send_consent(agent_id, True)
                     continue
 
                 if status.get("active"):

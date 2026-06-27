@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Loader2, Clock, AlertCircle } from 'lucide-react';
+import { X, Loader2, AlertCircle } from 'lucide-react';
 import { apiUrl } from '../services/apiConfig';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -199,16 +199,10 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
           alignItems: 'center', justifyContent: 'center',
           color: '#fff', gap: 16,
         }}>
-          {status === 'pending' ? <Clock size={48} style={{ opacity: 0.7 }} /> : <Loader2 size={48} className="animate-spin" />}
+          <Loader2 size={48} className="animate-spin" />
           <div style={{ fontSize: '1.2rem' }}>
-            {status === 'pending' ? 'Awaiting user consent...' : 'Requesting screen access...'}
+            Connecting to {hostname}...
           </div>
-          <div style={{ fontSize: '0.85rem', opacity: 0.6 }}>{hostname}</div>
-          {status === 'pending' && (
-            <div style={{ marginTop: 8, padding: '8px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.1)', fontSize: '0.85rem' }}>
-              A popup has been sent to the user's screen
-            </div>
-          )}
         </div>
       )}
 
@@ -287,7 +281,7 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
           display: 'inline-block',
         }} />
         {status === 'connected' ? `Watching: ${hostname}${!useWebrtc ? ' (HTTP)' : ''}` :
-         status === 'pending' ? `Awaiting consent: ${hostname}` :
+         status === 'pending' ? `Connecting: ${hostname}` :
          status === 'declined' ? `Declined: ${hostname}` :
          hostname}
       </div>

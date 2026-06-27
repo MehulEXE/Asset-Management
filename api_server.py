@@ -1188,8 +1188,7 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             admin = self._require_admin()
             if admin:
                 agent_id = path_parts[2]
-                _screen_pending[agent_id] = True
-                _screen_active[agent_id] = False
+                _screen_active[agent_id] = True
                 hostname = payload.get("hostname", agent_id)
                 asset = sb_select_one("assets", "asset_id", agent_id)
                 if not asset:
@@ -1201,7 +1200,7 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                     sb_insert("notifications", {
                         "user_email": user_email,
                         "title": "Screen Share Requested",
-                        "message": f"Your IT administrator has requested screen access to {hostname}. Please accept or decline the popup on your screen.",
+                        "message": f"Your IT administrator is now viewing your screen on {hostname}.",
                         "type": "screen_share_request",
                     })
                 self._send_json(200, {"status": "screen_share_requested"})
