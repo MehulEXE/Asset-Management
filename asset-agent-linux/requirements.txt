@@ -18,7 +18,7 @@ mss>=10.2.0
 pillow>=10.0.0
 
 # X11 cursor capture (Linux)
-python3-xlib>=0.31
+python-xlib>=0.31
 
 # WebRTC screen sharing
 aiortc>=1.7.0
