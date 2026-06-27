@@ -139,3 +139,37 @@ class APIClient:
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error sending stop ack: {e}")
             return False
+
+    def send_signal_offer(self, agent_id: str, sdp: dict) -> bool:
+        """Sends WebRTC SDP offer to the signaling server."""
+        url = f"{self.base_url}/api/v1/signal/offer/{agent_id}"
+        try:
+            response = self.session.post(url, json=sdp, verify=self.verify_certs, timeout=10)
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending signal offer: {e}")
+            return False
+
+    def get_signal_answer(self, agent_id: str) -> dict | None:
+        """Polls for WebRTC SDP answer from the signaling server."""
+        url = f"{self.base_url}/api/v1/signal/answer/{agent_id}"
+        try:
+            response = self.session.get(url, verify=self.verify_certs, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("sdp"):
+                    return data
+            return None
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error getting signal answer: {e}")
+            return None
+
+    def send_ice_candidate(self, agent_id: str, candidate: dict) -> bool:
+        """Sends WebRTC ICE candidate to the signaling server."""
+        url = f"{self.base_url}/api/v1/signal/ice-candidate/{agent_id}"
+        try:
+            response = self.session.post(url, json=candidate, verify=self.verify_certs, timeout=10)
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending ICE candidate: {e}")
+            return False

@@ -77,17 +77,86 @@ class APIClient:
             logger.error(f"Network error during check-in: {e}")
             return False
 
-    def heartbeat(self, payload: dict) -> bool:
+    def heartbeat(self, payload: dict) -> dict | None:
         url = f"{self.base_url}/api/v1/agent/heartbeat"
         logger.debug(f"Sending heartbeat to: {url}")
         try:
             response = self.session.post(url, json=payload, verify=self.verify_certs, timeout=15)
             if response.status_code in [200, 201]:
                 logger.debug("Heartbeat successfully sent.")
-                return True
+                return response.json()
             else:
                 logger.error(f"API returned failure status for heartbeat: {response.status_code} - {response.text}")
-                return False
+                return None
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error during heartbeat: {e}")
+            return None
+
+    def screen_share_checkin(self, agent_id: str, hostname: str) -> bool | dict:
+        url = f"{self.base_url}/api/v1/agent/screen-sharer-checkin"
+        try:
+            response = self.session.post(url, json={"agent_id": agent_id, "hostname": hostname}, verify=self.verify_certs, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+            return False
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error during screen sharer checkin: {e}")
+            return False
+
+    def send_screen_frame(self, agent_id: str, frame_b64: str) -> bool:
+        url = f"{self.base_url}/api/v1/agent/screen-frame"
+        try:
+            response = self.session.post(url, json={"agent_id": agent_id, "frame": frame_b64}, verify=self.verify_certs, timeout=15)
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending screen frame: {e}")
+            return False
+
+    def send_consent(self, agent_id: str, consent: bool) -> bool:
+        url = f"{self.base_url}/api/v1/agent/screen-consent"
+        try:
+            response = self.session.post(url, json={"agent_id": agent_id, "consent": consent}, verify=self.verify_certs, timeout=10)
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending consent: {e}")
+            return False
+
+    def screen_share_stop_ack(self, agent_id: str) -> bool:
+        url = f"{self.base_url}/api/v1/agent/screen-share-stop-ack"
+        try:
+            response = self.session.post(url, json={"agent_id": agent_id}, verify=self.verify_certs, timeout=10)
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending stop ack: {e}")
+            return False
+
+    def send_signal_offer(self, agent_id: str, sdp: dict) -> bool:
+        url = f"{self.base_url}/api/v1/signal/offer/{agent_id}"
+        try:
+            response = self.session.post(url, json=sdp, verify=self.verify_certs, timeout=10)
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending signal offer: {e}")
+            return False
+
+    def get_signal_answer(self, agent_id: str) -> dict | None:
+        url = f"{self.base_url}/api/v1/signal/answer/{agent_id}"
+        try:
+            response = self.session.get(url, verify=self.verify_certs, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("sdp"):
+                    return data
+            return None
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error getting signal answer: {e}")
+            return None
+
+    def send_ice_candidate(self, agent_id: str, candidate: dict) -> bool:
+        url = f"{self.base_url}/api/v1/signal/ice-candidate/{agent_id}"
+        try:
+            response = self.session.post(url, json=candidate, verify=self.verify_certs, timeout=10)
+            return response.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error sending ICE candidate: {e}")
             return False

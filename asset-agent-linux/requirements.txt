@@ -13,6 +13,18 @@ distro>=1.9.0
 # Security and encryption libraries
 cryptography>=42.0.5
 
+# Screen capture
+mss>=10.2.0
+pillow>=10.0.0
+
+# X11 cursor capture (Linux)
+python3-xlib>=0.31
+
+# WebRTC screen sharing
+aiortc>=1.7.0
+av>=11.0.0
+aiohttp>=3.9.0
+
 # Offline storage via SQLite
 # (sqlite3 is stdlib, no pip dep needed)
 

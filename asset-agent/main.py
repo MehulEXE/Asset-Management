@@ -310,22 +310,41 @@ class AssetAgent:
                     continue
 
                 if status.get("active"):
-                    logger.info("Screen share active, starting capture...")
-                    while True:
-                        frame = capturer.capture_frame(include_cursor=True)
-                        if frame:
-                            self.client.send_screen_frame(agent_id, frame)
-                        checkin = self.client.screen_share_checkin(agent_id, hostname)
-                        if not isinstance(checkin, dict) or not checkin.get("active"):
-                            logger.info("Screen share stopped by admin")
-                            self.client.screen_share_stop_ack(agent_id)
-                            break
-                        time.sleep(0.2)
+                    logger.info("Screen share active, starting WebRTC...")
+                    try:
+                        from webrtc_peer import WebRTCScreenSharer
+                        sharer = WebRTCScreenSharer(agent_id, hostname, capturer, self.client)
+                        sharer_thread = sharer.start_thread()
+                        sharer_thread.join()
+                        logger.info("WebRTC screen share ended")
+                    except ImportError as e:
+                        logger.warning(f"WebRTC not available, falling back to HTTP polling: {e}")
+                        self._run_http_screen_capture(capturer, agent_id, hostname)
+                    except Exception as e:
+                        logger.error(f"WebRTC error, falling back to HTTP polling: {e}")
+                        self._run_http_screen_capture(capturer, agent_id, hostname)
                 else:
                     time.sleep(2)
             except Exception as e:
                 logger.error(f"Screen sharer error: {e}")
                 time.sleep(5)
+
+    def _run_http_screen_capture(self, capturer, agent_id: str, hostname: str):
+        """Fallback HTTP polling-based screen capture if WebRTC is unavailable."""
+        logger.info("Starting HTTP polling screen capture fallback")
+        try:
+            while True:
+                frame = capturer.capture_frame(include_cursor=True)
+                if frame:
+                    self.client.send_screen_frame(agent_id, frame)
+                checkin = self.client.screen_share_checkin(agent_id, hostname)
+                if not isinstance(checkin, dict) or not checkin.get("active"):
+                    logger.info("Screen share stopped by admin")
+                    self.client.screen_share_stop_ack(agent_id)
+                    break
+                time.sleep(0.2)
+        except Exception as e:
+            logger.error(f"HTTP screen capture error: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description="Windows Asset Discovery Agent")

@@ -80,6 +80,10 @@ _screen_pending: dict[str, bool] = {}
 _screen_sharer_agents: dict[str, dict] = {}
 _pending_scan: set = set()
 
+_signal_offers: dict[str, dict] = {}
+_signal_answers: dict[str, dict] = {}
+_signal_ice_candidates: dict[str, list[dict]] = {}
+
 PORT = int(os.environ.get("PORT", 8000))
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
@@ -526,6 +530,28 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             admin = self._require_admin()
             if admin:
                 self._send_json(200, {"sharers": list(_screen_sharer_agents.values())})
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "signal" and path_parts[3] == "offer":
+            agent_id = path_parts[4]
+            offer = _signal_offers.get(agent_id)
+            if offer:
+                self._send_json(200, offer)
+            else:
+                self._send_json(200, {})
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "signal" and path_parts[3] == "answer":
+            agent_id = path_parts[4]
+            answer = _signal_answers.get(agent_id)
+            if answer:
+                self._send_json(200, answer)
+            else:
+                self._send_json(200, {})
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "signal" and path_parts[3] == "ice-candidate":
+            agent_id = path_parts[4]
+            candidates = _signal_ice_candidates.get(agent_id, [])
+            _signal_ice_candidates[agent_id] = []
+            self._send_json(200, {"candidates": candidates})
 
         else:
             self._send_json(404, {"error": "Not found"})
@@ -1122,6 +1148,42 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self._send_json(400, {"error": "agent_id required"})
 
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "signal" and path_parts[3] == "offer":
+            agent_id = path_parts[4]
+            sdp = payload.get("sdp")
+            stype = payload.get("type")
+            if agent_id and sdp and stype:
+                _signal_offers[agent_id] = {"sdp": sdp, "type": stype}
+                _signal_answers.pop(agent_id, None)
+                _signal_ice_candidates[agent_id] = []
+                logger.info(f"WebRTC offer received for agent {agent_id}")
+                self._send_json(200, {"status": "ok"})
+            else:
+                self._send_json(400, {"error": "agent_id, sdp, and type required"})
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "signal" and path_parts[3] == "answer":
+            agent_id = path_parts[4]
+            sdp = payload.get("sdp")
+            stype = payload.get("type")
+            if agent_id and sdp and stype:
+                _signal_answers[agent_id] = {"sdp": sdp, "type": stype}
+                logger.info(f"WebRTC answer received for agent {agent_id}")
+                self._send_json(200, {"status": "ok"})
+            else:
+                self._send_json(400, {"error": "agent_id, sdp, and type required"})
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "signal" and path_parts[3] == "ice-candidate":
+            agent_id = path_parts[4]
+            candidate = payload.get("candidate")
+            mid = payload.get("sdpMid")
+            if agent_id and candidate:
+                if agent_id not in _signal_ice_candidates:
+                    _signal_ice_candidates[agent_id] = []
+                _signal_ice_candidates[agent_id].append({"candidate": candidate, "sdpMid": mid})
+                self._send_json(200, {"status": "ok"})
+            else:
+                self._send_json(400, {"error": "agent_id and candidate required"})
+
         elif len(path_parts) == 4 and path_parts[0] == "api" and path_parts[1] == "screen" and path_parts[3] == "start":
             admin = self._require_admin()
             if admin:
@@ -1151,6 +1213,9 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 _screen_active[agent_id] = False
                 _screen_pending[agent_id] = False
                 _screen_frames.pop(agent_id, None)
+                _signal_offers.pop(agent_id, None)
+                _signal_answers.pop(agent_id, None)
+                _signal_ice_candidates.pop(agent_id, None)
                 self._send_json(200, {"status": "screen_share_stopped"})
 
         elif path == "/api/v1/ai/query":

