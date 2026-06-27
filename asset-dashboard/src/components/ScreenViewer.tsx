@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Loader2, Clock, AlertCircle } from 'lucide-react';
 import { apiUrl } from '../services/apiConfig';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ScreenViewerProps {
   agentId: string;
@@ -16,6 +17,7 @@ const STUN_SERVERS = [
 ];
 
 export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) {
+  const { token } = useAuth();
   const [status, setStatus] = useState<ConnectionStatus>('requesting');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [frame, setFrame] = useState<string | null>(null);
@@ -39,10 +41,11 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
   }, [agentId]);
 
   const initScreenShare = async () => {
+    if (!token) return;
     try {
       const res = await fetch(apiUrl(`/api/screen/${encodeURIComponent(agentId)}/start`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ hostname }),
       });
       if (!res.ok) {
@@ -61,7 +64,9 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
     pollIntervalRef.current = window.setInterval(async () => {
       if (!activeRef.current) return;
       try {
-        const res = await fetch(apiUrl(`/api/v1/signal/offer/${encodeURIComponent(agentId)}`));
+        const res = await fetch(apiUrl(`/api/v1/signal/offer/${encodeURIComponent(agentId)}`), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) return;
         const data = await res.json();
         if (data.sdp && useWebrtc) {
@@ -97,7 +102,7 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
           try {
             await fetch(apiUrl(`/api/v1/signal/ice-candidate/${encodeURIComponent(agentId)}`), {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: JSON.stringify({ candidate: event.candidate.candidate, sdpMid: event.candidate.sdpMid }),
             });
           } catch {}
@@ -125,7 +130,7 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
 
       await fetch(apiUrl(`/api/v1/signal/answer/${encodeURIComponent(agentId)}`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ sdp: answer.sdp, type: answer.type }),
       });
 
@@ -143,7 +148,9 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
     pollIntervalRef.current = window.setInterval(async () => {
       if (!activeRef.current) return;
       try {
-        const res = await fetch(apiUrl(`/api/screen/frame/${encodeURIComponent(agentId)}`));
+        const res = await fetch(apiUrl(`/api/screen/frame/${encodeURIComponent(agentId)}`), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) { setStatus('offline'); return; }
         const data = await res.json();
         if (data.declined) {
@@ -168,7 +175,10 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
 
   const handleStop = async () => {
     try {
-      await fetch(apiUrl(`/api/screen/${encodeURIComponent(agentId)}/stop`), { method: 'POST' });
+      await fetch(apiUrl(`/api/screen/${encodeURIComponent(agentId)}/stop`), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
     } catch {}
     if (pcRef.current) {
       pcRef.current.close();
