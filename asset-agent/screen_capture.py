@@ -1,8 +1,7 @@
 import io
 import base64
 import logging
-import mss
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageGrab
 import win32gui
 import win32ui
 import win32con
@@ -12,7 +11,6 @@ logger = logging.getLogger("AssetAgent")
 class ScreenCapture:
     def __init__(self, quality: int = 70):
         self.quality = quality
-        self.sct = None
 
     def _get_cursor_bitmap(self) -> tuple[Image.Image | None, tuple[int, int]]:
         try:
@@ -36,22 +34,9 @@ class ScreenCapture:
             logger.debug(f"Cursor capture failed: {e}")
             return None, (0, 0)
 
-    def _ensure_init(self) -> bool:
-        if self.sct is None:
-            try:
-                self.sct = mss.mss()
-            except Exception as e:
-                logger.error(f"Failed to initialize screen capture: {e}")
-                return False
-        return True
-
     def capture_frame(self, include_cursor: bool = True) -> str | None:
-        if not self._ensure_init():
-            return None
         try:
-            monitor = self.sct.monitors[1]
-            screenshot = self.sct.grab(monitor)
-            img = Image.frombuffer("RGB", screenshot.size, screenshot.rgb, "raw", "RGB", 0, 1)
+            img = ImageGrab.grab()
             if include_cursor:
                 cursor_img, (cx, cy) = self._get_cursor_bitmap()
                 if cursor_img:
@@ -77,5 +62,4 @@ class ScreenCapture:
             return None
 
     def close(self):
-        if self.sct:
-            self.sct.close()
+        pass

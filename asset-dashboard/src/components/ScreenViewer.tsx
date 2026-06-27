@@ -27,12 +27,15 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
   const activeRef = useRef(true);
   const pollIntervalRef = useRef<number | null>(null);
 
+  const fallbackTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
     activeRef.current = true;
     initScreenShare();
     return () => {
       activeRef.current = false;
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
       if (pcRef.current) {
         pcRef.current.close();
         pcRef.current = null;
@@ -71,11 +74,13 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
         const data = await res.json();
         if (data.sdp && useWebrtc) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
           pollIntervalRef.current = null;
           setStatus('signaling');
           startWebRTC(data);
         } else if (!useWebrtc) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
           pollIntervalRef.current = null;
           startHttpPolling();
         }
@@ -83,6 +88,18 @@ export function ScreenViewer({ agentId, hostname, onClose }: ScreenViewerProps) 
         if (activeRef.current) setStatus('offline');
       }
     }, 500);
+
+    fallbackTimerRef.current = window.setTimeout(() => {
+      if (!activeRef.current) return;
+      if (useWebrtc) {
+        setUseWebrtc(false);
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        startHttpPolling();
+      }
+    }, 15000);
   };
 
   const startWebRTC = async (offer: { sdp: string; type: string }) => {
