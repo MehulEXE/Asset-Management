@@ -285,12 +285,15 @@ class AssetAgent:
             logger.warning(f"Screen sharing dependencies not available: {e}")
             return
 
-        capturer = ScreenCapture(quality=70)
+        capturer = None
         agent_id = self.config["agent_id"]
         hostname = socket.gethostname()
 
         while True:
             try:
+                if capturer is None:
+                    capturer = ScreenCapture(quality=70)
+
                 status = self.client.screen_share_checkin(agent_id, hostname)
                 if not isinstance(status, dict):
                     time.sleep(2)
@@ -298,10 +301,18 @@ class AssetAgent:
 
                 if status.get("pending") and not status.get("active"):
                     logger.info("Screen share request received, auto-accepting...")
-                    self.client.send_consent(agent_id, True)
+                    if self.client.send_consent(agent_id, True):
+                        logger.info("Consent sent, waiting for activation...")
+                    else:
+                        logger.warning("Failed to send consent, will retry")
+                    time.sleep(2)
                     continue
 
                 if status.get("active"):
+                    if capturer is None:
+                        logger.warning("Screen capture not available, cannot start screen share")
+                        time.sleep(2)
+                        continue
                     logger.info("Screen share active, starting WebRTC...")
                     try:
                         from webrtc_peer import WebRTCScreenSharer

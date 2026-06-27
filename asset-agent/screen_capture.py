@@ -12,7 +12,7 @@ logger = logging.getLogger("AssetAgent")
 class ScreenCapture:
     def __init__(self, quality: int = 70):
         self.quality = quality
-        self.sct = mss.mss()
+        self.sct = None
 
     def _get_cursor_bitmap(self) -> tuple[Image.Image | None, tuple[int, int]]:
         try:
@@ -36,7 +36,18 @@ class ScreenCapture:
             logger.debug(f"Cursor capture failed: {e}")
             return None, (0, 0)
 
+    def _ensure_init(self) -> bool:
+        if self.sct is None:
+            try:
+                self.sct = mss.mss()
+            except Exception as e:
+                logger.error(f"Failed to initialize screen capture: {e}")
+                return False
+        return True
+
     def capture_frame(self, include_cursor: bool = True) -> str | None:
+        if not self._ensure_init():
+            return None
         try:
             monitor = self.sct.monitors[1]
             screenshot = self.sct.grab(monitor)
@@ -66,4 +77,5 @@ class ScreenCapture:
             return None
 
     def close(self):
-        self.sct.close()
+        if self.sct:
+            self.sct.close()
