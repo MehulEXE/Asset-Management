@@ -39,7 +39,31 @@ export function RequestAssetModal({ onClose, onSubmit, allocatedUsers = [] }: Re
   const [showAllocDropdown, setShowAllocDropdown] = useState(false);
   const [isNewAllocUser, setIsNewAllocUser] = useState(false);
   const [highlightedAllocIdx, setHighlightedAllocIdx] = useState(0);
+  const [allocDropdownStyle, setAllocDropdownStyle] = useState<React.CSSProperties>({});
   const allocRef = useRef<HTMLDivElement>(null);
+
+  const getDropdownFixedStyle = (el: HTMLElement): React.CSSProperties => {
+    const rect = el.getBoundingClientRect();
+    return {
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 10000,
+      backgroundColor: 'var(--bg-primary)',
+      border: '1px solid var(--border-color)',
+      borderRadius: '8px',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+      maxHeight: '220px',
+      overflowY: 'auto',
+    };
+  };
+
+  const openAllocDropdown = () => {
+    if (allocRef.current) setAllocDropdownStyle(getDropdownFixedStyle(allocRef.current));
+    setShowAllocDropdown(true);
+    setHighlightedAllocIdx(0);
+  };
 
   const filteredAllocUsers = useMemo(() => {
     if (!allocSearch) return allocatedUsers;
@@ -139,19 +163,14 @@ export function RequestAssetModal({ onClose, onSubmit, allocatedUsers = [] }: Re
                       setIsNewAllocUser(true);
                       setReqEmployeeName(val);
                       setAllocSearch(val);
-                      setShowAllocDropdown(true);
+                      openAllocDropdown();
                     }}
-                    onFocus={() => { setShowAllocDropdown(true); setHighlightedAllocIdx(0); }}
+                    onFocus={openAllocDropdown}
                   />
-                  <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => setShowAllocDropdown(v => !v)} />
+                  <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => showAllocDropdown ? setShowAllocDropdown(false) : openAllocDropdown()} />
                 </div>
                 {showAllocDropdown && (
-                  <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
-                    backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
-                    borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', marginTop: '4px',
-                    maxHeight: '220px', overflowY: 'auto',
-                  }}>
+                  <div style={allocDropdownStyle}>
                     <div
                       onClick={() => handleAllocSelect('__new__', '')}
                       onMouseEnter={() => setHighlightedAllocIdx(0)}
