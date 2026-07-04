@@ -199,7 +199,7 @@ export default function App() {
     try {
       await fetch(apiUrl(`/api/assets/${encodeURIComponent(updatedAsset.id)}`), {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(updatedAsset),
       });
     } catch {

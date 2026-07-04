@@ -278,9 +278,9 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
       cpu_cores: formCPUCores,
       ram_total: formRAM,
       status: formStatus,
-      serial_number: `SN-${Math.floor(100000 + Math.random() * 900000)}`,
-      disks: [],
-      software_inventory: []
+      serial_number: isEditing && selectedAsset ? selectedAsset.serial_number : `SN-${Math.floor(100000 + Math.random() * 900000)}`,
+      disks: isEditing && selectedAsset ? selectedAsset.disks : [],
+      software_inventory: isEditing && selectedAsset ? selectedAsset.software_inventory : []
     };
 
     if (isEditing && selectedAsset) {

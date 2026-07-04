@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { User, Undo2, Award } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { User, Undo2, Award, Plus, ChevronDown } from 'lucide-react';
 
 interface Asset {
   id: string;
@@ -40,11 +40,57 @@ export const Allocation: React.FC<AllocationProps> = ({ assets, allocations, his
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const [employeeName, setEmployeeName] = useState('');
   const [employeeEmail, setEmployeeEmail] = useState('');
+  const [allocateSearch, setAllocateSearch] = useState('');
+  const [showAllocateDropdown, setShowAllocateDropdown] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const allocateRef = useRef<HTMLDivElement>(null);
+  const [highlightedUserIdx, setHighlightedUserIdx] = useState(0);
 
   const activeAllocations = allocations.filter(a => a.returned_at === null);
   const returnedAllocations = allocations.filter(a => a.returned_at !== null);
 
   const availableAssets = assets.filter(a => a.status === 'Available');
+
+  const previousUsers = useMemo(() => {
+    const map = new Map<string, string>();
+    allocations.forEach(a => {
+      if (a.employee_name) map.set(a.employee_name, a.employee_email);
+    });
+    return Array.from(map.entries())
+      .map(([name, email]) => ({ name, email }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allocations]);
+
+  const filteredUsers = useMemo(() => {
+    if (!allocateSearch) return previousUsers;
+    const q = allocateSearch.toLowerCase();
+    return previousUsers.filter(u => u.name.toLowerCase().includes(q));
+  }, [previousUsers, allocateSearch]);
+
+  const handleNameSelect = (name: string, email: string) => {
+    if (name === '__new__') {
+      setIsNewUser(true);
+      setEmployeeName('');
+      setEmployeeEmail('');
+      setAllocateSearch('');
+    } else {
+      setIsNewUser(false);
+      setEmployeeName(name);
+      setEmployeeEmail(email);
+      setAllocateSearch(name);
+    }
+    setShowAllocateDropdown(false);
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (allocateRef.current && !allocateRef.current.contains(e.target as Node)) {
+        setShowAllocateDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleAllocateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +100,8 @@ export const Allocation: React.FC<AllocationProps> = ({ assets, allocations, his
     setSelectedAssetId('');
     setEmployeeName('');
     setEmployeeEmail('');
+    setAllocateSearch('');
+    setIsNewUser(false);
   };
 
   return (
@@ -84,15 +132,94 @@ export const Allocation: React.FC<AllocationProps> = ({ assets, allocations, his
             </div>
 
             <div className="form-group">
-              <label>Employee Name</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                placeholder="e.g. John Doe" 
-                value={employeeName}
-                onChange={e => setEmployeeName(e.target.value)}
-                required
-              />
+              <label>Allocate To</label>
+              <div ref={allocateRef} style={{ position: 'relative' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px',
+                  border: '1px solid var(--border-color)', borderRadius: '6px',
+                  background: 'var(--bg-primary)', minHeight: '36px',
+                  cursor: 'pointer',
+                }}>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, padding: '8px 0', cursor: 'pointer' }}
+                    placeholder="Search or select user..."
+                    value={isNewUser ? employeeName : allocateSearch}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setIsNewUser(true);
+                      setEmployeeName(val);
+                      setAllocateSearch(val);
+                      setShowAllocateDropdown(true);
+                    }}
+                    onFocus={() => { setShowAllocateDropdown(true); setHighlightedUserIdx(0); }}
+                    onKeyDown={e => {
+                      if (!showAllocateDropdown) return;
+                      const items = [{ name: '__new__', email: '' }, ...filteredUsers];
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setHighlightedUserIdx(p => Math.min(p + 1, items.length - 1));
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setHighlightedUserIdx(p => Math.max(p - 1, 0));
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const item = items[highlightedUserIdx];
+                        if (item) handleNameSelect(item.name, item.email);
+                      } else if (e.key === 'Escape') {
+                        setShowAllocateDropdown(false);
+                      }
+                    }}
+                    required={!employeeName}
+                  />
+                  <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => setShowAllocateDropdown(v => !v)} />
+                </div>
+                {showAllocateDropdown && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                    backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                    borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', marginTop: '4px',
+                    maxHeight: '220px', overflowY: 'auto',
+                  }}>
+                    <div
+                      onClick={() => handleNameSelect('__new__', '')}
+                      onMouseEnter={() => setHighlightedUserIdx(0)}
+                      style={{
+                        padding: '10px 12px', cursor: 'pointer', fontSize: '0.85rem',
+                        backgroundColor: highlightedUserIdx === 0 ? 'var(--bg-tertiary)' : 'transparent',
+                        color: 'var(--primary)', fontWeight: 600,
+                        borderBottom: '1px solid var(--border-color)',
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                      }}
+                    >
+                      <Plus size={16} /> New
+                    </div>
+                    {filteredUsers.length > 0 ? (
+                      filteredUsers.map((u, i) => (
+                        <div
+                          key={u.name}
+                          onClick={() => handleNameSelect(u.name, u.email)}
+                          onMouseEnter={() => setHighlightedUserIdx(i + 1)}
+                          style={{
+                            padding: '10px 12px', cursor: 'pointer', fontSize: '0.85rem',
+                            backgroundColor: highlightedUserIdx === i + 1 ? 'var(--bg-tertiary)' : 'transparent',
+                            color: 'var(--text-primary)',
+                            borderBottom: i < filteredUsers.length - 1 ? '1px solid var(--border-color)' : 'none',
+                          }}
+                        >
+                          <div style={{ fontWeight: 500 }}>{u.name}</div>
+                          {u.email && <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{u.email}</div>}
+                        </div>
+                      ))
+                    ) : !isNewUser && (
+                      <div style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                        No matching users
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="form-group">
