@@ -32,6 +32,8 @@ export function RequestAssetModal({ onClose, onSubmit }: RequestAssetModalProps)
   const [swTotalCost, setSwTotalCost] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [publisher, setPublisher] = useState('');
+  const [reqEmployeeName, setReqEmployeeName] = useState('');
+  const [reqEmployeeEmail, setReqEmployeeEmail] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,9 +42,10 @@ export function RequestAssetModal({ onClose, onSubmit }: RequestAssetModalProps)
     try {
       const resolvedCategory = hwCategory === 'Other' ? customCategory : hwCategory;
       const resolvedSwType = swType === 'Other' ? customSwType : swType;
+      const common = { employee_name: reqEmployeeName, employee_email: reqEmployeeEmail };
       const form_data = requestType === 'hardware'
-        ? { category: resolvedCategory, serial_number: serialNumber, manufacturer, model, purchase_date: purchaseDate, total_cost: totalCost }
-        : { license_type: resolvedSwType, name: swName, purpose, total_cost: swTotalCost, expiry_date: expiryDate, publisher };
+        ? { ...common, category: resolvedCategory, serial_number: serialNumber, manufacturer, model, purchase_date: purchaseDate, total_cost: totalCost }
+        : { ...common, license_type: resolvedSwType, name: swName, purpose, total_cost: swTotalCost, expiry_date: expiryDate, publisher };
       await onSubmit({ request_type: requestType, form_data });
       onClose();
     } catch (err: any) {
@@ -76,6 +79,17 @@ export function RequestAssetModal({ onClose, onSubmit }: RequestAssetModalProps)
                 <button type="button" className={`btn ${requestType === 'software' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setRequestType('software')}>
                   💿 Software
                 </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label className="form-label">Allocated To (Name)</label>
+                <input className="form-control" value={reqEmployeeName} onChange={e => setReqEmployeeName(e.target.value)} placeholder="e.g. John Doe" />
+              </div>
+              <div>
+                <label className="form-label">Allocated To (Email)</label>
+                <input className="form-control" type="email" value={reqEmployeeEmail} onChange={e => setReqEmployeeEmail(e.target.value)} placeholder="e.g. john@company.com" />
               </div>
             </div>
 

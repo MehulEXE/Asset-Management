@@ -65,6 +65,8 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
   const [formCPUCores, setFormCPUCores] = useState(4);
   const [formRAM, setFormRAM] = useState('16.00 GB');
   const [formStatus, setFormStatus] = useState('Available');
+  const [formEmployeeName, setFormEmployeeName] = useState('');
+  const [formEmployeeEmail, setFormEmployeeEmail] = useState('');
 
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -234,6 +236,8 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     setFormCPUCores(8);
     setFormRAM('16.00 GB');
     setFormStatus('Available');
+    setFormEmployeeName('');
+    setFormEmployeeEmail('');
     setShowAddModal(true);
   };
 
@@ -259,6 +263,8 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     setFormCPUCores(asset.cpu_cores);
     setFormRAM(asset.ram_total);
     setFormStatus(asset.status);
+    setFormEmployeeName(asset.employee_name || '');
+    setFormEmployeeEmail(asset.employee_email || '');
     setShowAddModal(true);
   };
 
@@ -279,6 +285,8 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
       ram_total: formRAM,
       status: formStatus,
       serial_number: isEditing && selectedAsset ? selectedAsset.serial_number : `SN-${Math.floor(100000 + Math.random() * 900000)}`,
+      employee_name: formEmployeeName,
+      employee_email: formEmployeeEmail,
       disks: isEditing && selectedAsset ? selectedAsset.disks : [],
       software_inventory: isEditing && selectedAsset ? selectedAsset.software_inventory : []
     };
@@ -550,6 +558,17 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
                   <div className="form-group">
                     <label>Model</label>
                     <input type="text" className="form-control" value={formModel} onChange={e => setFormModel(e.target.value)} placeholder="e.g. Latitude 5420" />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div className="form-group">
+                    <label>Allocated To (Name)</label>
+                    <input type="text" className="form-control" value={formEmployeeName} onChange={e => setFormEmployeeName(e.target.value)} placeholder="e.g. John Doe" />
+                  </div>
+                  <div className="form-group">
+                    <label>Allocated To (Email)</label>
+                    <input type="email" className="form-control" value={formEmployeeEmail} onChange={e => setFormEmployeeEmail(e.target.value)} placeholder="e.g. john@company.com" />
                   </div>
                 </div>
 
