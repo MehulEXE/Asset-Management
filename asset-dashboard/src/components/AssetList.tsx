@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { Plus, Edit2, Trash2, Eye, ShieldAlert, MonitorUp, Send, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { RequestAssetModal } from './RequestAssetModal';
@@ -72,7 +71,6 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
   const [showAllocDropdown, setShowAllocDropdown] = useState(false);
   const [isNewAllocUser, setIsNewAllocUser] = useState(false);
   const [highlightedAllocIdx, setHighlightedAllocIdx] = useState(0);
-  const [allocDropdownStyle, setAllocDropdownStyle] = useState<React.CSSProperties>({});
   const allocRef = useRef<HTMLDivElement>(null);
 
   const allocatedUsers = React.useMemo(() => {
@@ -245,7 +243,6 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
   const [showCatDropdown, setShowCatDropdown] = useState(false);
   const [isNewCategory, setIsNewCategory] = useState(false);
   const [highlightedCatIdx, setHighlightedCatIdx] = useState(0);
-  const [catDropdownStyle, setCatDropdownStyle] = useState<React.CSSProperties>({});
   const catRef = useRef<HTMLDivElement>(null);
 
   const baseCategories = ['Laptop', 'Desktop', 'Server', 'Printer', 'Network Device', 'Firewall', 'Mobile Device', 'Software License'];
@@ -261,35 +258,6 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     const q = catSearch.toLowerCase();
     return allCategories.filter(c => c.toLowerCase().includes(q));
   }, [allCategories, catSearch]);
-
-  const getDropdownFixedStyle = (el: HTMLElement): React.CSSProperties => {
-    const rect = el.getBoundingClientRect();
-    return {
-      position: 'fixed',
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
-      zIndex: 10000,
-      backgroundColor: 'var(--bg-primary)',
-      border: '1px solid var(--border-color)',
-      borderRadius: '8px',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-      maxHeight: '220px',
-      overflowY: 'auto',
-    };
-  };
-
-  const openCatDropdown = () => {
-    if (catRef.current) setCatDropdownStyle(getDropdownFixedStyle(catRef.current));
-    setShowCatDropdown(true);
-    setHighlightedCatIdx(0);
-  };
-
-  const openAllocDropdown = () => {
-    if (allocRef.current) setAllocDropdownStyle(getDropdownFixedStyle(allocRef.current));
-    setShowAllocDropdown(true);
-    setHighlightedAllocIdx(0);
-  };
 
   const handleCategorySelect = (cat: string) => {
     if (cat === '__new__') {
@@ -315,8 +283,6 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  const categories = ['Laptop', 'Desktop', 'Server', 'Printer', 'Network Device', 'Firewall', 'Mobile Device', 'Software License', 'Other'];
 
   // Filters logic
   const filteredAssets = assets.filter(asset => {
@@ -694,18 +660,16 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
                             setCatSearch(val);
                             setShowCatDropdown(true);
                           }}
-                          onFocus={openCatDropdown}
+                          onFocus={() => { setShowCatDropdown(true); setHighlightedCatIdx(0); }}
                           onKeyDown={e => {
-                            if (!showCatDropdown) return;
+                            if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') e.preventDefault();
                             const items = ['__new__', ...filteredCategories];
                             if (e.key === 'ArrowDown') {
-                              e.preventDefault();
                               setHighlightedCatIdx(p => Math.min(p + 1, items.length - 1));
                             } else if (e.key === 'ArrowUp') {
-                              e.preventDefault();
                               setHighlightedCatIdx(p => Math.max(p - 1, 0));
                             } else if (e.key === 'Enter') {
-                              e.preventDefault();
+                              if (!showCatDropdown) { setShowCatDropdown(true); return; }
                               const item = items[highlightedCatIdx];
                               if (item) handleCategorySelect(item);
                             } else if (e.key === 'Escape') {
@@ -713,10 +677,15 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
                             }
                           }}
                         />
-                        <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => showCatDropdown ? setShowCatDropdown(false) : openCatDropdown()} />
+                        <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => setShowCatDropdown(v => !v)} />
                       </div>
                       {showCatDropdown && (
-                        <div style={catDropdownStyle}>
+                        <div style={{
+                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                          backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                          borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', marginTop: '4px',
+                          maxHeight: '220px', overflowY: 'auto',
+                        }}>
                           <div
                             onClick={() => handleCategorySelect('__new__')}
                             onMouseEnter={() => setHighlightedCatIdx(0)}
@@ -800,20 +769,18 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
                           setIsNewAllocUser(true);
                           setFormEmployeeName(val);
                           setAllocSearch(val);
-                          openAllocDropdown();
+                          setShowAllocDropdown(true);
                         }}
-                        onFocus={openAllocDropdown}
+                        onFocus={() => { setShowAllocDropdown(true); setHighlightedAllocIdx(0); }}
                         onKeyDown={e => {
-                          if (!showAllocDropdown) return;
+                          if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') e.preventDefault();
                           const items = [{ name: '__new__', email: '' }, ...filteredAllocUsers];
                           if (e.key === 'ArrowDown') {
-                            e.preventDefault();
                             setHighlightedAllocIdx(p => Math.min(p + 1, items.length - 1));
                           } else if (e.key === 'ArrowUp') {
-                            e.preventDefault();
                             setHighlightedAllocIdx(p => Math.max(p - 1, 0));
                           } else if (e.key === 'Enter') {
-                            e.preventDefault();
+                            if (!showAllocDropdown) { setShowAllocDropdown(true); return; }
                             const item = items[highlightedAllocIdx];
                             if (item) handleAllocSelect(item.name, item.email);
                           } else if (e.key === 'Escape') {
@@ -821,10 +788,15 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
                           }
                         }}
                       />
-                      <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => showAllocDropdown ? setShowAllocDropdown(false) : openAllocDropdown()} />
+                      <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => setShowAllocDropdown(v => !v)} />
                     </div>
                     {showAllocDropdown && (
-                      <div style={allocDropdownStyle}>
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                        backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                        borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', marginTop: '4px',
+                        maxHeight: '220px', overflowY: 'auto',
+                      }}>
                         <div
                           onClick={() => handleAllocSelect('__new__', '')}
                           onMouseEnter={() => setHighlightedAllocIdx(0)}
