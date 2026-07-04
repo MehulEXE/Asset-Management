@@ -332,8 +332,9 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     setFormEmployeeEmail('');
     setIsNewCategory(false);
     setCatSearch('Laptop');
-    setFormCategory('Laptop');
     setFormCustomCategory('');
+    setIsNewAllocUser(true);
+    setAllocSearch('');
     setShowAddModal(true);
   };
 
@@ -363,8 +364,17 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     setFormCPUCores(asset.cpu_cores);
     setFormRAM(asset.ram_total);
     setFormStatus(asset.status);
-    setFormEmployeeName(asset.employee_name || '');
-    setFormEmployeeEmail(asset.employee_email || '');
+    if (asset.employee_name) {
+      setFormEmployeeName(asset.employee_name);
+      setFormEmployeeEmail(asset.employee_email || '');
+      setIsNewAllocUser(false);
+      setAllocSearch(asset.employee_name);
+    } else {
+      setFormEmployeeName('');
+      setFormEmployeeEmail('');
+      setIsNewAllocUser(true);
+      setAllocSearch('');
+    }
     setShowAddModal(true);
   };
 
