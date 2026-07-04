@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { X, Loader2, Plus, ChevronDown } from 'lucide-react';
 
 interface RequestAssetModalProps {
   onClose: () => void;
   onSubmit: (data: { request_type: string; form_data: any }) => Promise<void>;
+  allocatedUsers?: Array<{ name: string; email: string }>;
 }
 
 const HW_CATEGORIES = [
@@ -12,7 +13,7 @@ const HW_CATEGORIES = [
 
 const SW_TYPES = ['License', 'Subscription', 'API', 'Other'];
 
-export function RequestAssetModal({ onClose, onSubmit }: RequestAssetModalProps) {
+export function RequestAssetModal({ onClose, onSubmit, allocatedUsers = [] }: RequestAssetModalProps) {
   const [requestType, setRequestType] = useState<'hardware' | 'software'>('hardware');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -34,6 +35,42 @@ export function RequestAssetModal({ onClose, onSubmit }: RequestAssetModalProps)
   const [publisher, setPublisher] = useState('');
   const [reqEmployeeName, setReqEmployeeName] = useState('');
   const [reqEmployeeEmail, setReqEmployeeEmail] = useState('');
+  const [allocSearch, setAllocSearch] = useState('');
+  const [showAllocDropdown, setShowAllocDropdown] = useState(false);
+  const [isNewAllocUser, setIsNewAllocUser] = useState(false);
+  const [highlightedAllocIdx, setHighlightedAllocIdx] = useState(0);
+  const allocRef = useRef<HTMLDivElement>(null);
+
+  const filteredAllocUsers = useMemo(() => {
+    if (!allocSearch) return allocatedUsers;
+    const q = allocSearch.toLowerCase();
+    return allocatedUsers.filter(u => u.name.toLowerCase().includes(q));
+  }, [allocatedUsers, allocSearch]);
+
+  const handleAllocSelect = (name: string, email: string) => {
+    if (name === '__new__') {
+      setIsNewAllocUser(true);
+      setReqEmployeeName('');
+      setReqEmployeeEmail('');
+      setAllocSearch('');
+    } else {
+      setIsNewAllocUser(false);
+      setReqEmployeeName(name);
+      setReqEmployeeEmail(email);
+      setAllocSearch(name);
+    }
+    setShowAllocDropdown(false);
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (allocRef.current && !allocRef.current.contains(e.target as Node)) {
+        setShowAllocDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,15 +119,85 @@ export function RequestAssetModal({ onClose, onSubmit }: RequestAssetModalProps)
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label className="form-label">Allocated To (Name)</label>
-                <input className="form-control" value={reqEmployeeName} onChange={e => setReqEmployeeName(e.target.value)} placeholder="e.g. John Doe" />
+            <div>
+              <label className="form-label">Allocated To</label>
+              <div ref={allocRef} style={{ position: 'relative' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px',
+                  border: '1px solid var(--border-color)', borderRadius: '6px',
+                  background: 'var(--bg-primary)', minHeight: '36px',
+                  cursor: 'pointer',
+                }}>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, padding: '8px 0', cursor: 'pointer' }}
+                    placeholder="Search or select user..."
+                    value={isNewAllocUser ? reqEmployeeName : allocSearch}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setIsNewAllocUser(true);
+                      setReqEmployeeName(val);
+                      setAllocSearch(val);
+                      setShowAllocDropdown(true);
+                    }}
+                    onFocus={() => { setShowAllocDropdown(true); setHighlightedAllocIdx(0); }}
+                  />
+                  <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => setShowAllocDropdown(v => !v)} />
+                </div>
+                {showAllocDropdown && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                    backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                    borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', marginTop: '4px',
+                    maxHeight: '220px', overflowY: 'auto',
+                  }}>
+                    <div
+                      onClick={() => handleAllocSelect('__new__', '')}
+                      onMouseEnter={() => setHighlightedAllocIdx(0)}
+                      style={{
+                        padding: '10px 12px', cursor: 'pointer', fontSize: '0.85rem',
+                        backgroundColor: highlightedAllocIdx === 0 ? 'var(--bg-tertiary)' : 'transparent',
+                        color: 'var(--primary)', fontWeight: 600,
+                        borderBottom: '1px solid var(--border-color)',
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                      }}
+                    >
+                      <Plus size={16} /> New
+                    </div>
+                    {filteredAllocUsers.length > 0 ? (
+                      filteredAllocUsers.map((u, i) => (
+                        <div
+                          key={u.name}
+                          onClick={() => handleAllocSelect(u.name, u.email)}
+                          onMouseEnter={() => setHighlightedAllocIdx(i + 1)}
+                          style={{
+                            padding: '10px 12px', cursor: 'pointer', fontSize: '0.85rem',
+                            backgroundColor: highlightedAllocIdx === i + 1 ? 'var(--bg-tertiary)' : 'transparent',
+                            color: 'var(--text-primary)',
+                            borderBottom: i < filteredAllocUsers.length - 1 ? '1px solid var(--border-color)' : 'none',
+                          }}
+                        >
+                          <div style={{ fontWeight: 500 }}>{u.name}</div>
+                          {u.email && <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{u.email}</div>}
+                        </div>
+                      ))
+                    ) : !isNewAllocUser && (
+                      <div style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                        No matching users
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="form-label">Allocated To (Email)</label>
-                <input className="form-control" type="email" value={reqEmployeeEmail} onChange={e => setReqEmployeeEmail(e.target.value)} placeholder="e.g. john@company.com" />
-              </div>
+              <input
+                type="email"
+                className="form-control"
+                style={{ marginTop: '8px' }}
+                placeholder="Email (auto-filled for existing users)"
+                value={reqEmployeeEmail}
+                onChange={e => setReqEmployeeEmail(e.target.value)}
+              />
             </div>
 
             {requestType === 'hardware' ? (

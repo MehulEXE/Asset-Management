@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Eye, ShieldAlert, MonitorUp, Send } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, ShieldAlert, MonitorUp, Send, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { RequestAssetModal } from './RequestAssetModal';
 import { apiUrl } from '../services/apiConfig';
@@ -67,6 +67,52 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
   const [formStatus, setFormStatus] = useState('Available');
   const [formEmployeeName, setFormEmployeeName] = useState('');
   const [formEmployeeEmail, setFormEmployeeEmail] = useState('');
+  const [allocSearch, setAllocSearch] = useState('');
+  const [showAllocDropdown, setShowAllocDropdown] = useState(false);
+  const [isNewAllocUser, setIsNewAllocUser] = useState(false);
+  const [highlightedAllocIdx, setHighlightedAllocIdx] = useState(0);
+  const allocRef = useRef<HTMLDivElement>(null);
+
+  const allocatedUsers = React.useMemo(() => {
+    const map = new Map<string, string>();
+    assets.forEach(a => {
+      if (a.employee_name) map.set(a.employee_name, a.employee_email || '');
+    });
+    return Array.from(map.entries())
+      .map(([name, email]) => ({ name, email }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [assets]);
+
+  const filteredAllocUsers = React.useMemo(() => {
+    if (!allocSearch) return allocatedUsers;
+    const q = allocSearch.toLowerCase();
+    return allocatedUsers.filter(u => u.name.toLowerCase().includes(q));
+  }, [allocatedUsers, allocSearch]);
+
+  const handleAllocSelect = (name: string, email: string) => {
+    if (name === '__new__') {
+      setIsNewAllocUser(true);
+      setFormEmployeeName('');
+      setFormEmployeeEmail('');
+      setAllocSearch('');
+    } else {
+      setIsNewAllocUser(false);
+      setFormEmployeeName(name);
+      setFormEmployeeEmail(email);
+      setAllocSearch(name);
+    }
+    setShowAllocDropdown(false);
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (allocRef.current && !allocRef.current.contains(e.target as Node)) {
+        setShowAllocDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -561,15 +607,102 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                  <div className="form-group">
-                    <label>Allocated To (Name)</label>
-                    <input type="text" className="form-control" value={formEmployeeName} onChange={e => setFormEmployeeName(e.target.value)} placeholder="e.g. John Doe" />
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label>Allocated To</label>
+                  <div ref={allocRef} style={{ position: 'relative' }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px',
+                      border: '1px solid var(--border-color)', borderRadius: '6px',
+                      background: 'var(--bg-primary)', minHeight: '36px',
+                      cursor: 'pointer',
+                    }}>
+                      <input
+                        type="text"
+                        className="form-control"
+                        style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, padding: '8px 0', cursor: 'pointer' }}
+                        placeholder="Search or select user..."
+                        value={isNewAllocUser ? formEmployeeName : allocSearch}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setIsNewAllocUser(true);
+                          setFormEmployeeName(val);
+                          setAllocSearch(val);
+                          setShowAllocDropdown(true);
+                        }}
+                        onFocus={() => { setShowAllocDropdown(true); setHighlightedAllocIdx(0); }}
+                        onKeyDown={e => {
+                          if (!showAllocDropdown) return;
+                          const items = [{ name: '__new__', email: '' }, ...filteredAllocUsers];
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setHighlightedAllocIdx(p => Math.min(p + 1, items.length - 1));
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setHighlightedAllocIdx(p => Math.max(p - 1, 0));
+                          } else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const item = items[highlightedAllocIdx];
+                            if (item) handleAllocSelect(item.name, item.email);
+                          } else if (e.key === 'Escape') {
+                            setShowAllocDropdown(false);
+                          }
+                        }}
+                      />
+                      <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => setShowAllocDropdown(v => !v)} />
+                    </div>
+                    {showAllocDropdown && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                        backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                        borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', marginTop: '4px',
+                        maxHeight: '220px', overflowY: 'auto',
+                      }}>
+                        <div
+                          onClick={() => handleAllocSelect('__new__', '')}
+                          onMouseEnter={() => setHighlightedAllocIdx(0)}
+                          style={{
+                            padding: '10px 12px', cursor: 'pointer', fontSize: '0.85rem',
+                            backgroundColor: highlightedAllocIdx === 0 ? 'var(--bg-tertiary)' : 'transparent',
+                            color: 'var(--primary)', fontWeight: 600,
+                            borderBottom: '1px solid var(--border-color)',
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                          }}
+                        >
+                          <Plus size={16} /> New
+                        </div>
+                        {filteredAllocUsers.length > 0 ? (
+                          filteredAllocUsers.map((u, i) => (
+                            <div
+                              key={u.name}
+                              onClick={() => handleAllocSelect(u.name, u.email)}
+                              onMouseEnter={() => setHighlightedAllocIdx(i + 1)}
+                              style={{
+                                padding: '10px 12px', cursor: 'pointer', fontSize: '0.85rem',
+                                backgroundColor: highlightedAllocIdx === i + 1 ? 'var(--bg-tertiary)' : 'transparent',
+                                color: 'var(--text-primary)',
+                                borderBottom: i < filteredAllocUsers.length - 1 ? '1px solid var(--border-color)' : 'none',
+                              }}
+                            >
+                              <div style={{ fontWeight: 500 }}>{u.name}</div>
+                              {u.email && <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{u.email}</div>}
+                            </div>
+                          ))
+                        ) : !isNewAllocUser && (
+                          <div style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                            No matching users
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="form-group">
-                    <label>Allocated To (Email)</label>
-                    <input type="email" className="form-control" value={formEmployeeEmail} onChange={e => setFormEmployeeEmail(e.target.value)} placeholder="e.g. john@company.com" />
-                  </div>
+                  <input
+                    type="email"
+                    className="form-control"
+                    style={{ marginTop: '8px' }}
+                    placeholder="Email (auto-filled for existing users)"
+                    value={formEmployeeEmail}
+                    onChange={e => setFormEmployeeEmail(e.target.value)}
+                  />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
@@ -705,6 +838,7 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
 
       {showRequestModal && (
         <RequestAssetModal
+          allocatedUsers={allocatedUsers}
           onClose={() => setShowRequestModal(false)}
           onSubmit={async (data) => {
             if (!token) throw new Error('Not authenticated');
