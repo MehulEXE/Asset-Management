@@ -238,6 +238,52 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     }
   };
 
+  // Category dropdown state
+  const [catSearch, setCatSearch] = useState('');
+  const [showCatDropdown, setShowCatDropdown] = useState(false);
+  const [isNewCategory, setIsNewCategory] = useState(false);
+  const [highlightedCatIdx, setHighlightedCatIdx] = useState(0);
+  const catRef = useRef<HTMLDivElement>(null);
+
+  const baseCategories = ['Laptop', 'Desktop', 'Server', 'Printer', 'Network Device', 'Firewall', 'Mobile Device', 'Software License'];
+
+  const allCategories = React.useMemo(() => {
+    const set = new Set<string>(baseCategories);
+    assets.forEach(a => { if (a.category) set.add(a.category); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [assets]);
+
+  const filteredCategories = React.useMemo(() => {
+    if (!catSearch) return allCategories;
+    const q = catSearch.toLowerCase();
+    return allCategories.filter(c => c.toLowerCase().includes(q));
+  }, [allCategories, catSearch]);
+
+  const handleCategorySelect = (cat: string) => {
+    if (cat === '__new__') {
+      setIsNewCategory(true);
+      setFormCategory('');
+      setFormCustomCategory('');
+      setCatSearch('');
+    } else {
+      setIsNewCategory(false);
+      setFormCategory(cat);
+      setFormCustomCategory('');
+      setCatSearch(cat);
+    }
+    setShowCatDropdown(false);
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (catRef.current && !catRef.current.contains(e.target as Node)) {
+        setShowCatDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const categories = ['Laptop', 'Desktop', 'Server', 'Printer', 'Network Device', 'Firewall', 'Mobile Device', 'Software License', 'Other'];
 
   // Filters logic
@@ -284,6 +330,10 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     setFormStatus('Available');
     setFormEmployeeName('');
     setFormEmployeeEmail('');
+    setIsNewCategory(false);
+    setCatSearch('Laptop');
+    setFormCategory('Laptop');
+    setFormCustomCategory('');
     setShowAddModal(true);
   };
 
@@ -292,12 +342,16 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     setSelectedAsset(asset);
     setFormAssetId(asset.asset_id);
     setFormHostname(asset.hostname);
-    if (categories.includes(asset.category)) {
+    if (allCategories.includes(asset.category)) {
       setFormCategory(asset.category);
       setFormCustomCategory('');
+      setIsNewCategory(false);
+      setCatSearch(asset.category);
     } else {
-      setFormCategory('Other');
+      setFormCategory('');
       setFormCustomCategory(asset.category);
+      setIsNewCategory(true);
+      setCatSearch('');
     }
     setFormManufacturer(asset.manufacturer);
     setFormModel(asset.model);
@@ -319,7 +373,7 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
     const payload = {
       asset_id: formAssetId,
       hostname: formHostname,
-      category: formCategory === 'Other' ? formCustomCategory : formCategory,
+      category: isNewCategory ? formCustomCategory : formCategory,
       manufacturer: formManufacturer,
       model: formModel,
       os_name: formOSName,
@@ -444,7 +498,7 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
               style={{ maxWidth: '180px' }}
             >
               <option value="All">All Categories</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
 
             <select 
@@ -578,11 +632,93 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                   <div className="form-group">
                     <label>Category</label>
-                    <select className="form-control" value={formCategory} onChange={e => { setFormCategory(e.target.value); if (e.target.value !== 'Other') setFormCustomCategory(''); }}>
-                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    {formCategory === 'Other' && (
-                      <input className="form-control" style={{ marginTop: 8 }} value={formCustomCategory} onChange={e => setFormCustomCategory(e.target.value)} placeholder="Describe the type..." required />
+                    <div ref={catRef} style={{ position: 'relative' }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px',
+                        border: '1px solid var(--border-color)', borderRadius: '6px',
+                        background: 'var(--bg-primary)', minHeight: '36px',
+                        cursor: 'pointer',
+                      }}>
+                        <input
+                          type="text"
+                          className="form-control"
+                          style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, padding: '8px 0', cursor: 'pointer' }}
+                          placeholder="Search or select category..."
+                          value={isNewCategory ? formCustomCategory : catSearch}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setIsNewCategory(true);
+                            setFormCustomCategory(val);
+                            setCatSearch(val);
+                            setShowCatDropdown(true);
+                          }}
+                          onFocus={() => { setShowCatDropdown(true); setHighlightedCatIdx(0); }}
+                          onKeyDown={e => {
+                            if (!showCatDropdown) return;
+                            const items = ['__new__', ...filteredCategories];
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setHighlightedCatIdx(p => Math.min(p + 1, items.length - 1));
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setHighlightedCatIdx(p => Math.max(p - 1, 0));
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const item = items[highlightedCatIdx];
+                              if (item) handleCategorySelect(item);
+                            } else if (e.key === 'Escape') {
+                              setShowCatDropdown(false);
+                            }
+                          }}
+                        />
+                        <ChevronDown size={15} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} onClick={() => setShowCatDropdown(v => !v)} />
+                      </div>
+                      {showCatDropdown && (
+                        <div style={{
+                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                          backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                          borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', marginTop: '4px',
+                          maxHeight: '220px', overflowY: 'auto',
+                        }}>
+                          <div
+                            onClick={() => handleCategorySelect('__new__')}
+                            onMouseEnter={() => setHighlightedCatIdx(0)}
+                            style={{
+                              padding: '10px 12px', cursor: 'pointer', fontSize: '0.85rem',
+                              backgroundColor: highlightedCatIdx === 0 ? 'var(--bg-tertiary)' : 'transparent',
+                              color: 'var(--primary)', fontWeight: 600,
+                              borderBottom: '1px solid var(--border-color)',
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                            }}
+                          >
+                            <Plus size={16} /> New
+                          </div>
+                          {filteredCategories.length > 0 ? (
+                            filteredCategories.map((c, i) => (
+                              <div
+                                key={c}
+                                onClick={() => handleCategorySelect(c)}
+                                onMouseEnter={() => setHighlightedCatIdx(i + 1)}
+                                style={{
+                                  padding: '10px 12px', cursor: 'pointer', fontSize: '0.85rem',
+                                  backgroundColor: highlightedCatIdx === i + 1 ? 'var(--bg-tertiary)' : 'transparent',
+                                  color: 'var(--text-primary)',
+                                  borderBottom: i < filteredCategories.length - 1 ? '1px solid var(--border-color)' : 'none',
+                                }}
+                              >
+                                {c}
+                              </div>
+                            ))
+                          ) : !isNewCategory && (
+                            <div style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                              No matching categories
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {isNewCategory && (
+                      <input className="form-control" style={{ marginTop: 8 }} value={formCustomCategory} onChange={e => { setFormCustomCategory(e.target.value); setCatSearch(e.target.value); }} placeholder="Type the new category name..." required />
                     )}
                   </div>
                   <div className="form-group">
