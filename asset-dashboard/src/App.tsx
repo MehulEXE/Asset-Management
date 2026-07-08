@@ -220,7 +220,7 @@ export default function App() {
 
   const handleUpdateAsset = async (updatedAsset: Asset) => {
     savingRef.current = true;
-    setAssets(assets.map(a => a.id === updatedAsset.id ? updatedAsset : a));
+    setAssets(prev => prev.map(a => a.id === updatedAsset.id ? updatedAsset : a));
 
     try {
       await fetch(apiUrl(`/api/assets/${encodeURIComponent(updatedAsset.id)}`), {
