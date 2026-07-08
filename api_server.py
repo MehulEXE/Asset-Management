@@ -394,6 +394,16 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 else:
                     self._send_json(404, {"error": "Linux agent directory not found on server."})
 
+        elif path == "/api/categories":
+            base_cats = ['Laptop', 'Desktop', 'Server', 'Printer', 'Network Device', 'Firewall', 'Mobile Device', 'Software License']
+            try:
+                rows = get_db().table("assets").select("category").execute()
+                db_cats = set(r["category"] for r in (rows.data or []) if r.get("category"))
+            except Exception:
+                db_cats = set()
+            all_cats = sorted(set(base_cats) | db_cats)
+            self._send_json(200, all_cats)
+
         elif path == "/api/auth/me":
             user = self._require_auth()
             if user:
@@ -834,6 +844,33 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                     })
 
             self._send_json(200, {"status": "success", "message": "Agent registered successfully", "asset": created_asset})
+
+        elif path == "/api/assets":
+            admin = self._require_admin()
+            if admin:
+                # Input validation: require at minimum hostname and category
+                hostname = payload.get("hostname", "").strip()
+                category = payload.get("category", "").strip()
+                if not hostname:
+                    self._send_json(400, {"error": "hostname is required"})
+                    return
+                if not category:
+                    self._send_json(400, {"error": "category is required"})
+                    return
+                allowed_fields = {
+                    "asset_id", "hostname", "category", "manufacturer", "model",
+                    "serial_number", "os_name", "os_version", "ip_address",
+                    "mac_address", "cpu_model", "cpu_cores", "ram_total",
+                    "disks", "software_inventory", "status",
+                    "employee_name", "employee_email",
+                }
+                asset_rec = {k: v for k, v in payload.items() if k in allowed_fields}
+                asset_rec["last_seen"] = now_iso()
+                created = sb_insert("assets", asset_rec)
+                if created:
+                    self._send_json(201, created)
+                else:
+                    self._send_json(500, {"error": "Failed to create asset"})
 
         elif path == "/api/groups/create":
             group_rec = {
@@ -1361,10 +1398,8 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                         except json.JSONDecodeError:
                             fd = {}
                     asset_id_val = req.get("id", req_id)[:8]
-                    valid_categories = {'Laptop', 'Desktop', 'Server', 'Printer', 'Network Device', 'Firewall', 'Mobile Device', 'Software License'}
-                    category = fd.get("category", "Laptop")
-                    if category not in valid_categories:
-                        category = "Laptop"
+                    # Accept any category from the approved request form_data
+                    category = fd.get("category", "Laptop").strip() or "Laptop"
                     def _val(v):
                         return v if v else None
                     asset_rec = {

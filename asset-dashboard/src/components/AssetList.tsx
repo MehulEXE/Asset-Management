@@ -247,11 +247,30 @@ export const AssetList: React.FC<AssetListProps> = ({ assets, onAddAsset, onUpda
 
   const baseCategories = ['Laptop', 'Desktop', 'Server', 'Printer', 'Network Device', 'Firewall', 'Mobile Device', 'Software License'];
 
+  // Fetch categories dynamically from the backend
+  const [serverCategories, setServerCategories] = useState<string[]>([]);
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(apiUrl('/api/categories'));
+        if (res.ok) {
+          const cats: string[] = await res.json();
+          setServerCategories(cats);
+        }
+      } catch {
+        // Silent fallback to base categories
+      }
+    };
+    fetchCategories();
+    const interval = setInterval(fetchCategories, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
   const allCategories = React.useMemo(() => {
-    const set = new Set<string>(baseCategories);
+    const set = new Set<string>(serverCategories.length > 0 ? serverCategories : baseCategories);
     assets.forEach(a => { if (a.category) set.add(a.category); });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [assets]);
+  }, [assets, serverCategories]);
 
   const filteredCategories = React.useMemo(() => {
     if (!catSearch) return allCategories;

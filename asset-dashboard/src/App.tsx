@@ -163,14 +163,31 @@ export default function App() {
   };
 
   // CRUD Actions
-  const handleAddAsset = (newAsset: Omit<Asset, 'id' | 'last_seen'>) => {
+  const handleAddAsset = async (newAsset: Omit<Asset, 'id' | 'last_seen'>) => {
+    const tempId = `temp-${Date.now()}`;
     const freshAsset: Asset = {
       ...newAsset,
-      id: String(assets.length + 1),
+      id: tempId,
       last_seen: new Date().toISOString().replace('T', ' ').split('.')[0]
     };
-    setAssets([...assets, freshAsset]);
-    
+    // Optimistic local update
+    setAssets(prev => [...prev, freshAsset]);
+
+    try {
+      const res = await fetch(apiUrl('/api/assets'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newAsset),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        // Replace temp entry with server-returned asset (has real id)
+        setAssets(prev => prev.map(a => a.id === tempId ? { ...freshAsset, ...created } : a));
+      }
+    } catch {
+      // Keep optimistic entry; next poll will reconcile
+    }
+
     // Auto-update metrics
     setMetrics([...metrics, {
       id: freshAsset.id,

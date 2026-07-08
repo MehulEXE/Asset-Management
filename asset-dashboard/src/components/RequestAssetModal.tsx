@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Loader2, Plus, ChevronDown } from 'lucide-react';
+import { apiUrl } from '../services/apiConfig';
 
 interface RequestAssetModalProps {
   onClose: () => void;
@@ -7,7 +8,7 @@ interface RequestAssetModalProps {
   allocatedUsers?: Array<{ name: string; email: string }>;
 }
 
-const HW_CATEGORIES = [
+const DEFAULT_HW_CATEGORIES = [
   'Laptop', 'Desktop', 'Server', 'Printer', 'Network Device', 'Firewall', 'Mobile Device', 'Other',
 ];
 
@@ -40,6 +41,25 @@ export function RequestAssetModal({ onClose, onSubmit, allocatedUsers = [] }: Re
   const [isNewAllocUser, setIsNewAllocUser] = useState(false);
   const [highlightedAllocIdx, setHighlightedAllocIdx] = useState(0);
   const allocRef = useRef<HTMLDivElement>(null);
+
+  // Fetch categories dynamically from the backend
+  const [hwCategories, setHwCategories] = useState<string[]>(DEFAULT_HW_CATEGORIES);
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(apiUrl('/api/categories'));
+        if (res.ok) {
+          const cats: string[] = await res.json();
+          // Merge server categories with 'Other' option for truly new categories
+          const merged = [...new Set([...cats, 'Other'])];
+          setHwCategories(merged);
+        }
+      } catch {
+        // Fallback to defaults
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const filteredAllocUsers = useMemo(() => {
     if (!allocSearch) return allocatedUsers;
@@ -220,7 +240,7 @@ export function RequestAssetModal({ onClose, onSubmit, allocatedUsers = [] }: Re
                 <div>
                   <label className="form-label">Type</label>
                   <select className="form-control" value={hwCategory} onChange={e => { setHwCategory(e.target.value); if (e.target.value !== 'Other') setCustomCategory(''); }} required>
-                    {HW_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {hwCategories.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   {hwCategory === 'Other' && (
                     <input className="form-control" style={{ marginTop: 8 }} value={customCategory} onChange={e => setCustomCategory(e.target.value)} placeholder="Describe the item type..." required />
