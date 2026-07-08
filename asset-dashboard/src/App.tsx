@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Laptop, 
   IndianRupee, 
@@ -115,6 +115,9 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // Ref guard to prevent polling from overwriting local state during save operations
+  const savingRef = useRef(false);
+
   // Live API Polling Loop
   useEffect(() => {
     const fetchData = async () => {
@@ -128,7 +131,8 @@ export default function App() {
 
           fetch(apiUrl("/api/purchases")),
         ]);
-        if (assetsRes.ok) setAssets(await assetsRes.json());
+        // Skip overwriting assets if a save is in progress
+        if (assetsRes.ok && !savingRef.current) setAssets(await assetsRes.json());
         if (metricsRes.ok) setMetrics(await metricsRes.json());
         if (historyRes.ok) setHistoryLogs(await historyRes.json());
         if (purchasesRes.ok) setPurchases(await purchasesRes.json());
@@ -164,6 +168,7 @@ export default function App() {
 
   // CRUD Actions
   const handleAddAsset = async (newAsset: Omit<Asset, 'id' | 'last_seen'>) => {
+    savingRef.current = true;
     const tempId = `temp-${Date.now()}`;
     const freshAsset: Asset = {
       ...newAsset,
@@ -186,6 +191,9 @@ export default function App() {
       }
     } catch {
       // Keep optimistic entry; next poll will reconcile
+    } finally {
+      // Small delay before allowing polls to overwrite, so the server has the latest data
+      setTimeout(() => { savingRef.current = false; }, 2000);
     }
 
     // Auto-update metrics
@@ -211,6 +219,7 @@ export default function App() {
   };
 
   const handleUpdateAsset = async (updatedAsset: Asset) => {
+    savingRef.current = true;
     setAssets(assets.map(a => a.id === updatedAsset.id ? updatedAsset : a));
 
     try {
@@ -221,6 +230,9 @@ export default function App() {
       });
     } catch {
       // silent
+    } finally {
+      // Small delay before allowing polls to overwrite, so the server has the latest data
+      setTimeout(() => { savingRef.current = false; }, 2000);
     }
 
     setHistoryLogs([{
