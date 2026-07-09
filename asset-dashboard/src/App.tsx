@@ -25,6 +25,7 @@ import { Purchases } from './components/Purchases';
 import { Allocation } from './components/Allocation';
 import { LiveTelemetry } from './components/LiveTelemetry';
 import { ScreenViewer } from './components/ScreenViewer';
+import { RDPSession } from './components/RDPSession';
 import { SecuritySettings } from './components/SecuritySettings';
 import { AIAssistant } from './components/AIAssistant';
 import { ActiveAgents } from './components/ActiveAgents';
@@ -104,6 +105,8 @@ export default function App() {
 
   const [screenAgentId, setScreenAgentId] = useState<string | null>(null);
   const [screenHostname, setScreenHostname] = useState<string>('');
+  const [rdpAgentId, setRdpAgentId] = useState<string | null>(null);
+  const [rdpHostname, setRdpHostname] = useState<string>('');
 
   // Non-admin users only see assets allocated to them
   const userAssets = isAdmin
@@ -164,6 +167,16 @@ export default function App() {
   const handleStopScreen = () => {
     setScreenAgentId(null);
     setScreenHostname('');
+  };
+
+  const handleRequestRDP = (agentId: string, hostname: string) => {
+    setRdpAgentId(agentId);
+    setRdpHostname(hostname);
+  };
+
+  const handleStopRDP = () => {
+    setRdpAgentId(null);
+    setRdpHostname('');
   };
 
   // CRUD Actions
@@ -528,7 +541,7 @@ export default function App() {
         {isAdmin && activeTab === 'purchases' && <Purchases purchases={purchases} />}
         {isAdmin && activeTab === 'allocations' && <Allocation assets={assets} allocations={allocations} historyLogs={historyLogs} onAllocate={handleAllocate} onReturn={handleReturn} />}
         {isAdmin && activeTab === 'users' && <UserManagement refreshKey={usersRefreshKey} />}
-        {isAdmin && activeTab === 'monitoring' && <LiveTelemetry onWatchScreen={handleWatchScreen} />}
+        {isAdmin && activeTab === 'monitoring' && <LiveTelemetry onWatchScreen={handleWatchScreen} onRequestRDP={handleRequestRDP} />}
         {activeTab === 'ai' && <AIAssistant />}
         {activeTab === 'query_assist' && <QueryAssist />}
         {activeTab === 'security' && <SecuritySettings />}
@@ -538,6 +551,9 @@ export default function App() {
 
       {screenAgentId && (
         <ScreenViewer agentId={screenAgentId} hostname={screenHostname} onClose={handleStopScreen} />
+      )}
+      {rdpAgentId && (
+        <RDPSession agentId={rdpAgentId} hostname={rdpHostname} onClose={handleStopRDP} />
       )}
 
       {showAnnouncements && (

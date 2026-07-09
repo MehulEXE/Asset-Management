@@ -7,6 +7,9 @@ import io
 import tarfile
 import threading
 import time
+import struct
+import hashlib
+import base64
 from datetime import datetime, timezone, timedelta
 
 """
@@ -83,6 +86,10 @@ _pending_scan: set = set()
 _signal_offers: dict[str, dict] = {}
 _signal_answers: dict[str, dict] = {}
 _signal_ice_candidates: dict[str, list[dict]] = {}
+
+_rdp_active: dict[str, bool] = {}
+_rdp_pending: dict[str, bool] = {}
+_rdp_sessions: dict[str, dict] = {}
 
 PORT = int(os.environ.get("PORT", 8000))
 
@@ -210,6 +217,9 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
+            if self.headers.get("Upgrade", "").lower() == "websocket":
+                _handle_ws_upgrade(self)
+                return
             self._handle_get()
         except Exception as e:
             logger.error(f"Unhandled error in GET {self.path}: {e}", exc_info=True)
@@ -531,6 +541,17 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 "active": _screen_active.get(agent_id, False),
             })
 
+        elif len(path_parts) == 4 and path_parts[0] == "api" and path_parts[1] == "rdp" and path_parts[3] == "status":
+            agent_id = path_parts[2]
+            info = _rdp_sessions.get(agent_id, {})
+            self._send_json(200, {
+                "pending": _rdp_pending.get(agent_id, False),
+                "active": _rdp_active.get(agent_id, False),
+                "declined": not _rdp_pending.get(agent_id, False) and not _rdp_active.get(agent_id, False),
+                "vnc_port": info.get("vnc_port", 0),
+                "session_ready": info.get("agent_connected", False),
+            })
+
         elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "agent" and path_parts[3] == "screen-share-status":
             agent_id = path_parts[4]
             active = _screen_active.get(agent_id, False)
@@ -562,6 +583,21 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             candidates = _signal_ice_candidates.get(agent_id, [])
             _signal_ice_candidates[agent_id] = []
             self._send_json(200, {"candidates": candidates})
+
+        elif path == "/api/v1/rdp/sessions":
+            admin = self._require_admin()
+            if admin:
+                sessions = []
+                for agent_id in list(_rdp_active.keys()):
+                    if _rdp_active.get(agent_id):
+                        info = _rdp_sessions.get(agent_id, {})
+                        sessions.append({
+                            "agent_id": agent_id,
+                            "hostname": info.get("hostname", agent_id),
+                            "active": True,
+                            "vnc_port": info.get("vnc_port", 0),
+                        })
+                self._send_json(200, {"sessions": sessions})
 
         else:
             self._send_json(404, {"error": "Not found"})
@@ -1185,6 +1221,76 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self._send_json(400, {"error": "agent_id required"})
 
+        elif path == "/api/v1/agent/rdp-checkin":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
+            agent_id = payload.get("agent_id")
+            hostname = payload.get("hostname")
+            if agent_id:
+                _rdp_sessions.setdefault(agent_id, {})["hostname"] = hostname or "Unknown"
+                self._send_json(200, {
+                    "status": "ok",
+                    "active": _rdp_active.get(agent_id, False),
+                    "pending": _rdp_pending.get(agent_id, False),
+                })
+            else:
+                self._send_json(400, {"error": "agent_id required"})
+
+        elif path == "/api/v1/agent/rdp-consent":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
+            agent_id = payload.get("agent_id")
+            consent = payload.get("consent")
+            if agent_id and consent is not None:
+                if consent:
+                    _rdp_active[agent_id] = True
+                    _rdp_pending[agent_id] = False
+                    logger.info(f"RDP consent GRANTED for agent {agent_id}")
+                else:
+                    _rdp_pending[agent_id] = False
+                    logger.info(f"RDP consent DENIED for agent {agent_id}")
+                self._send_json(200, {"status": "ok"})
+            else:
+                self._send_json(400, {"error": "agent_id and consent required"})
+
+        elif path == "/api/v1/agent/rdp-session-start":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
+            agent_id = payload.get("agent_id")
+            hostname = payload.get("hostname")
+            vnc_port = payload.get("vnc_port")
+            if agent_id and vnc_port:
+                _rdp_sessions[agent_id] = {
+                    "agent_id": agent_id,
+                    "hostname": hostname or "Unknown",
+                    "vnc_port": vnc_port,
+                    "started_at": now_iso(),
+                }
+                logger.info(f"RDP session started for agent {agent_id} on port {vnc_port}")
+                self._send_json(200, {"status": "ok"})
+            else:
+                self._send_json(400, {"error": "agent_id and vnc_port required"})
+
+        elif path == "/api/v1/agent/rdp-stop-ack":
+            agent_token = self._get_bearer_token()
+            if not agent_token or agent_token != AGENT_SECRET:
+                self._send_json(401, {"error": "Invalid or missing agent token."})
+                return
+            agent_id = payload.get("agent_id")
+            if agent_id:
+                _rdp_active[agent_id] = False
+                _rdp_pending[agent_id] = False
+                _rdp_sessions.pop(agent_id, None)
+                self._send_json(200, {"status": "ok"})
+            else:
+                self._send_json(400, {"error": "agent_id required"})
+
         elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "signal" and path_parts[3] == "offer":
             agent_id = path_parts[4]
             sdp = payload.get("sdp")
@@ -1253,6 +1359,37 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
                 _signal_answers.pop(agent_id, None)
                 _signal_ice_candidates.pop(agent_id, None)
                 self._send_json(200, {"status": "screen_share_stopped"})
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "rdp" and path_parts[4] == "start":
+            admin = self._require_admin()
+            if admin:
+                agent_id = path_parts[3]
+                _rdp_pending[agent_id] = True
+                _rdp_active[agent_id] = False
+                hostname = payload.get("hostname", agent_id)
+                asset = sb_select_one("assets", "asset_id", agent_id)
+                user_email = ""
+                if asset:
+                    user_email = asset.get("employee_email", "")
+                if user_email:
+                    sb_insert("notifications", {
+                        "user_email": user_email,
+                        "title": "Remote Control Requested",
+                        "message": f"Your IT administrator has requested remote control of {hostname}.",
+                        "type": "rdp_request",
+                    })
+                self._send_json(200, {
+                    "status": "rdp_requested",
+                })
+
+        elif len(path_parts) == 5 and path_parts[0] == "api" and path_parts[1] == "v1" and path_parts[2] == "rdp" and path_parts[4] == "stop":
+            admin = self._require_admin()
+            if admin:
+                agent_id = path_parts[3]
+                _rdp_active[agent_id] = False
+                _rdp_pending[agent_id] = False
+                _rdp_sessions.pop(agent_id, None)
+                self._send_json(200, {"status": "rdp_stopped"})
 
         elif path == "/api/v1/ai/query":
             query_text = payload.get("query", "").strip()
@@ -1653,7 +1790,176 @@ def check_offline_agents():
         time.sleep(OFFLINE_CHECK_INTERVAL)
 
 
-def run(server_class=http.server.HTTPServer, handler_class=ITAMRequestHandler):
+# ---- WebSocket VNC relay (in-process, on PORT) ----
+
+_ws_pending_agent: dict[str, object] = {}
+_ws_pending_browser: dict[str, object] = {}
+_ws_lock = threading.Lock()
+_ws_peer_event: dict[str, threading.Event] = {}
+_ws_relay_stop: dict[str, threading.Event] = {}
+
+
+def _ws_accept_key(key: str) -> str:
+    """Compute Sec-WebSocket-Accept value."""
+    GUID = "258EAFA5-E914-47DA-95CA-5AB5B47E5F8B"
+    return base64.b64encode(hashlib.sha1((key + GUID).encode()).digest()).decode()
+
+
+def _ws_encode_frame(payload: bytes, opcode: int = 0x2) -> bytes:
+    """Encode a WebSocket frame (server-to-client, unmasked)."""
+    frame = bytearray()
+    frame.append(0x80 | opcode)  # FIN + opcode
+    length = len(payload)
+    if length < 126:
+        frame.append(length)
+    elif length < 65536:
+        frame.append(126)
+        frame.extend(struct.pack(">H", length))
+    else:
+        frame.append(127)
+        frame.extend(struct.pack(">Q", length))
+    frame.extend(payload)
+    return bytes(frame)
+
+
+def _ws_recv_frame(sock) -> tuple[int, bytes]:
+    """Read one WebSocket frame from a socket. Returns (opcode, payload)."""
+    b0 = sock.recv(1)
+    if not b0:
+        return (0x8, b"")
+    b0 = b0[0]
+    opcode = b0 & 0x0F
+    b1 = sock.recv(1)[0]
+    masked = bool(b1 & 0x80)
+    length = b1 & 0x7F
+    if length == 126:
+        length = struct.unpack(">H", sock.recv(2))[0]
+    elif length == 127:
+        length = struct.unpack(">Q", sock.recv(8))[0]
+    mask_key = sock.recv(4) if masked else b""
+    payload = sock.recv(length)
+    while len(payload) < length:
+        chunk = sock.recv(length - len(payload))
+        if not chunk:
+            break
+        payload += chunk
+    if masked:
+        payload = bytes(b ^ mask_key[i % 4] for i, b in enumerate(payload))
+    return (opcode, payload)
+
+
+def _ws_send_close(sock):
+    """Send a WebSocket close frame."""
+    try:
+        sock.sendall(_ws_encode_frame(b"", opcode=0x8))
+    except Exception:
+        pass
+
+
+def _ws_relay_bridge(agent_sock, browser_sock, agent_id: str):
+    """Relay bytes between agent and browser WebSocket connections."""
+    stop = _ws_relay_stop.setdefault(agent_id, threading.Event())
+
+    def forward(src, dst, name: str):
+        try:
+            while not stop.is_set():
+                opcode, payload = _ws_recv_frame(src)
+                if opcode == 0x8:
+                    break
+                if opcode == 0x9:
+                    try:
+                        dst.sendall(_ws_encode_frame(payload, opcode=0xA))
+                    except Exception:
+                        break
+                    continue
+                if opcode in (0x1, 0x2):
+                    try:
+                        dst.sendall(_ws_encode_frame(payload, opcode=opcode))
+                    except Exception:
+                        break
+        except Exception:
+            pass
+        finally:
+            stop.set()
+
+    t1 = threading.Thread(target=forward, args=(agent_sock, browser_sock, "agent->browser"), daemon=True)
+    t2 = threading.Thread(target=forward, args=(browser_sock, agent_sock, "browser->agent"), daemon=True)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+    _ws_send_close(agent_sock)
+    _ws_send_close(browser_sock)
+    _ws_relay_stop.pop(agent_id, None)
+
+
+def _handle_ws_upgrade(handler):
+    """Handle a WebSocket upgrade request within the HTTP server."""
+    key = handler.headers.get("Sec-WebSocket-Key", "")
+    path = handler.path
+    parts = [p for p in path.split("/") if p]
+    if len(parts) < 4 or parts[0] != "ws" or parts[1] != "vnc":
+        handler._send_json(400, {"error": "Invalid WebSocket path"})
+        return
+
+    role = parts[2]
+    agent_id = parts[3]
+
+    # Send 101 Switching Protocols
+    handler.send_response_only(101)
+    handler.send_header("Upgrade", "websocket")
+    handler.send_header("Connection", "Upgrade")
+    handler.send_header("Sec-WebSocket-Accept", _ws_accept_key(key))
+    handler.send_cors_headers()
+    handler.end_headers()
+
+    raw_sock = handler.connection
+    raw_sock.settimeout(None)
+
+    with _ws_lock:
+        if role == "agent":
+            _rdp_sessions.setdefault(agent_id, {})["agent_connected"] = True
+            peer_sock = _ws_pending_browser.pop(agent_id, None)
+        elif role == "browser":
+            peer_sock = _ws_pending_agent.pop(agent_id, None)
+        else:
+            peer_sock = None
+
+        if peer_sock is not None:
+            # Second connection — dup both sockets so they survive handler return
+            my_dup = raw_sock.dup()
+            peer_dup = peer_sock.dup()
+            event = _ws_peer_event.get(agent_id)
+            if event:
+                event.set()
+            t = threading.Thread(
+                target=_ws_relay_bridge,
+                args=(my_dup, peer_dup, agent_id),
+                daemon=True,
+            )
+            t.start()
+            return
+
+        # First connection — register in pending pool
+        if role == "agent":
+            _ws_pending_agent[agent_id] = raw_sock
+        else:
+            _ws_pending_browser[agent_id] = raw_sock
+
+    # Wait for the second connection to arrive (bridging runs in that handler's thread)
+    event = _ws_peer_event.setdefault(agent_id, threading.Event())
+    event.clear()
+    try:
+        event.wait()
+    finally:
+        with _ws_lock:
+            _ws_pending_agent.pop(agent_id, None)
+            _ws_pending_browser.pop(agent_id, None)
+            _ws_peer_event.pop(agent_id, None)
+            _rdp_sessions.get(agent_id, {}).pop("agent_connected", None)
+
+
+def run(server_class=http.server.ThreadingHTTPServer, handler_class=ITAMRequestHandler):
     # Start background offline checker
     t = threading.Thread(target=check_offline_agents, daemon=True)
     t.start()

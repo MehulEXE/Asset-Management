@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Monitor, MonitorPlay, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { Monitor, MonitorPlay, MousePointerClick, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { apiUrl } from '../services/apiConfig';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,16 +16,18 @@ interface AllocatedDevice {
 
 interface LiveTelemetryProps {
   onWatchScreen: (agentId: string, hostname: string) => void;
+  onRequestRDP: (agentId: string, hostname: string) => void;
 }
 
 const ALLOWED_CATEGORIES = ['Laptop', 'Desktop'];
 
-export function LiveTelemetry({ onWatchScreen }: LiveTelemetryProps) {
+export function LiveTelemetry({ onWatchScreen, onRequestRDP }: LiveTelemetryProps) {
   const { token } = useAuth();
   const [devices, setDevices] = useState<AllocatedDevice[]>([]);
   const [activeAgentIds, setActiveAgentIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [watchingId, setWatchingId] = useState<string | null>(null);
+  const [rdpId, setRdpId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -71,6 +73,11 @@ export function LiveTelemetry({ onWatchScreen }: LiveTelemetryProps) {
   const handleWatch = (device: AllocatedDevice) => {
     setWatchingId(device.asset_id);
     onWatchScreen(device.asset_id, device.hostname);
+  };
+
+  const handleRDP = (device: AllocatedDevice) => {
+    setRdpId(device.asset_id);
+    onRequestRDP(device.asset_id, device.hostname);
   };
 
   return (
@@ -130,14 +137,24 @@ export function LiveTelemetry({ onWatchScreen }: LiveTelemetryProps) {
                 <span>Employee: <strong>{device.employee_name || 'Unassigned'}</strong></span>
                 <span>Asset ID: {device.asset_id}</span>
               </div>
-              <button
-                className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}
-                onClick={() => handleWatch(device)}
-                disabled={watchingId === device.asset_id || !isActive}
-              >
-                {watchingId === device.asset_id ? <><Loader2 size={16} className="animate-spin" /> Requesting...</> : <><MonitorPlay size={16} /> Request Screen Access</>}
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', flex: 1 }}
+                  onClick={() => handleWatch(device)}
+                  disabled={watchingId === device.asset_id || !isActive}
+                >
+                  {watchingId === device.asset_id ? <><Loader2 size={16} className="animate-spin" /> Requesting...</> : <><MonitorPlay size={16} /> Screen</>}
+                </button>
+                <button
+                  className={`btn ${isActive ? 'btn-danger' : 'btn-secondary'}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', flex: 1 }}
+                  onClick={() => handleRDP(device)}
+                  disabled={rdpId === device.asset_id || !isActive}
+                >
+                  {rdpId === device.asset_id ? <><Loader2 size={16} className="animate-spin" /> Starting...</> : <><MousePointerClick size={16} /> Remote Control</>}
+                </button>
+              </div>
             </div>
           )})}
         </div>

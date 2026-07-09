@@ -23,6 +23,9 @@ pillow>=10.0.0
 
 # WebRTC screen sharing (Agent)
 aiortc>=1.7.0
+
+# WebSocket tunnel for RDP/VNC sessions (Agent + API Server)
+websockets>=15.0
 av>=11.0.0
 aiohttp>=3.9.0
 

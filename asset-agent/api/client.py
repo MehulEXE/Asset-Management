@@ -173,3 +173,50 @@ class APIClient:
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error sending ICE candidate: {e}")
             return False
+
+    def rdp_checkin(self, agent_id: str, hostname: str) -> bool | dict:
+        """Polls RDP session status from API server."""
+        url = f"{self.base_url}/api/v1/agent/rdp-checkin"
+        try:
+            resp = self.session.post(url, json={"agent_id": agent_id, "hostname": hostname},
+                                     verify=self.verify_certs, timeout=10)
+            if resp.status_code == 200:
+                return resp.json()
+            return False
+        except requests.exceptions.RequestException as e:
+            logger.error(f"RDP checkin error: {e}")
+            return False
+
+    def rdp_send_consent(self, agent_id: str, consent: bool) -> bool:
+        """Sends user consent for RDP session."""
+        url = f"{self.base_url}/api/v1/agent/rdp-consent"
+        try:
+            resp = self.session.post(url, json={"agent_id": agent_id, "consent": consent},
+                                     verify=self.verify_certs, timeout=10)
+            return resp.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"RDP consent error: {e}")
+            return False
+
+    def rdp_session_start(self, agent_id: str, hostname: str, vnc_port: int) -> bool:
+        """Registers RDP session with API server (VNC port info)."""
+        url = f"{self.base_url}/api/v1/agent/rdp-session-start"
+        try:
+            resp = self.session.post(url, json={
+                "agent_id": agent_id, "hostname": hostname, "vnc_port": vnc_port,
+            }, verify=self.verify_certs, timeout=10)
+            return resp.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"RDP session start error: {e}")
+            return False
+
+    def rdp_stop_ack(self, agent_id: str) -> bool:
+        """Acknowledges RDP session stop."""
+        url = f"{self.base_url}/api/v1/agent/rdp-stop-ack"
+        try:
+            resp = self.session.post(url, json={"agent_id": agent_id},
+                                     verify=self.verify_certs, timeout=10)
+            return resp.status_code == 200
+        except requests.exceptions.RequestException as e:
+            logger.error(f"RDP stop ack error: {e}")
+            return False

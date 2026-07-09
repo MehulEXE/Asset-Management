@@ -80,6 +80,7 @@ class AssetAgent:
         self._logout_started_at = None
 
         threading.Thread(target=self._run_screen_sharer, daemon=True).start()
+        threading.Thread(target=self._run_rdp_session, daemon=True).start()
 
     def process_offline_queue(self) -> int:
         """Processes and synchronizes cached offline payloads with the central API."""
@@ -348,6 +349,80 @@ class AssetAgent:
                 time.sleep(0.2)
         except Exception as e:
             logger.error(f"HTTP screen capture error: {e}")
+
+    def _run_rdp_session(self):
+        """Polls for RDP session requests and manages the VNC tunnel."""
+        try:
+            from rdp_session import RFBServer, TunnelClient
+        except ImportError as e:
+            logger.warning(f"RDP session dependencies not available: {e}")
+            return
+
+        capturer = None
+        agent_id = self.config["agent_id"]
+        hostname = socket.gethostname()
+
+        while True:
+            try:
+                status = self.client.rdp_checkin(agent_id, hostname)
+                if not isinstance(status, dict):
+                    time.sleep(3)
+                    continue
+
+                if status.get("pending") and not status.get("active"):
+                    logger.info("RDP session request received")
+                    if self.client.rdp_send_consent(agent_id, True):
+                        logger.info("RDP consent sent, starting session...")
+                    else:
+                        logger.warning("Failed to send RDP consent")
+                    time.sleep(2)
+                    continue
+
+                if status.get("active"):
+                    if capturer is None:
+                        try:
+                            from screen_capture import ScreenCapture
+                            capturer = ScreenCapture(quality=70)
+                        except ImportError:
+                            logger.error("Screen capture not available for RDP")
+                            time.sleep(5)
+                            continue
+
+                    logger.info("Starting RDP session...")
+                    try:
+                        rfb = RFBServer(capturer)
+                        port = rfb.start()
+                        stop_evt = threading.Event()
+
+                        def tunnel_monitor():
+                            while not stop_evt.is_set():
+                                s = self.client.rdp_checkin(agent_id, hostname)
+                                if not isinstance(s, dict) or not s.get("active"):
+                                    logger.info("RDP session no longer active, stopping")
+                                    stop_evt.set()
+                                    break
+                                stop_evt.wait(3)
+
+                        tunnel = TunnelClient(
+                            self.client.base_url, agent_id, hostname, port, stop_evt
+                        )
+                        monitor = threading.Thread(target=tunnel_monitor, daemon=True)
+                        monitor.start()
+                        tunnel.run()
+                        rfb.stop()
+                        self.client.rdp_stop_ack(agent_id)
+                        logger.info("RDP session ended")
+                    except ImportError as e:
+                        logger.warning(f"RDP tunnel unavailable: {e}")
+                        time.sleep(5)
+                    except Exception as e:
+                        logger.error(f"RDP session error: {e}", exc_info=True)
+                        time.sleep(3)
+                else:
+                    time.sleep(3)
+            except Exception as e:
+                logger.error(f"RDP session loop error: {e}")
+                time.sleep(5)
 
 def main():
     parser = argparse.ArgumentParser(description="Windows Asset Discovery Agent")
