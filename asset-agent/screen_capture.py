@@ -45,7 +45,7 @@ class ScreenCapture:
                     try:
                         info = win32gui.GetCursorInfo()
                         cursor_handle = info[1]
-                        hotspot_x, hotspot_y = win32gui.GetIconInfo(cursor_handle)[2:4]
+                        _, hotspot_x, hotspot_y, _, _ = win32gui.GetIconInfo(cursor_handle)
                     except Exception:
                         pass
                     paste_x = max(cx - hotspot_x, 0)
