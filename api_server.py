@@ -331,7 +331,7 @@ class ITAMRequestHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/v1/download/windows":
             installer_url = os.environ.get("INSTALLER_WINDOWS_URL")
             if not installer_url:
-                installer_url = "https://drive.google.com/uc?export=download&id=1ijZ5S5zbvIBz9EHmz52qUd0bBO0D-7k4&confirm=t"
+                installer_url = "https://drive.google.com/uc?export=download&id=1iToM8qZggT4VNyKfOrVjIdLne0Lb51hO&confirm=t"
             self.send_response(302)
             self.send_header("Location", installer_url)
             self.send_cors_headers()
