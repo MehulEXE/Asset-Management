@@ -20,6 +20,8 @@ supabase>=2.30.1
 # Screen capture (Agent)
 mss>=10.2.0
 pillow>=10.0.0
+dxcam>=0.3.0; sys_platform == 'win32'
+opencv-python-headless; sys_platform == 'win32'
 
 # WebRTC screen sharing (Agent)
 aiortc>=1.7.0

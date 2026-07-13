@@ -10,10 +10,10 @@ except ImportError:
     HAS_PIL_GRAB = False
 
 try:
-    import mss
-    HAS_MSS = True
+    import dxcam
+    HAS_DXCAM = True
 except ImportError:
-    HAS_MSS = False
+    HAS_DXCAM = False
 
 try:
     import win32gui
@@ -29,25 +29,25 @@ logger = logging.getLogger("AssetAgent")
 class ScreenCapture:
     def __init__(self, quality: int = 70):
         self.quality = quality
-        self._mss_sct = None
-        self._using_mss = False
+        self._camera = None
+        self._using_dxgi = False
 
-    def _init_mss(self) -> bool:
-        if not HAS_MSS:
+    def _init_dxgi(self) -> bool:
+        if not HAS_DXCAM:
             return False
         try:
-            self._mss_sct = mss.mss()
-            self._using_mss = True
-            logger.info("Using mss (DXGI) backend for screen capture")
+            self._camera = dxcam.create(output_color="RGB")
+            self._using_dxgi = True
+            logger.info("Using DXGI Desktop Duplication for screen capture")
             return True
         except Exception as e:
-            logger.debug(f"mss init failed, will fall back to PIL: {e}")
-            self._mss_sct = None
-            self._using_mss = False
+            logger.debug(f"DXGI init failed, will fall back to PIL: {e}")
+            self._camera = None
+            self._using_dxgi = False
             return False
 
     def _get_cursor_bitmap(self) -> tuple[Image.Image | None, tuple[int, int]]:
-        if not HAS_WIN32 or self._using_mss:
+        if not HAS_WIN32:
             return None, (0, 0)
         try:
             info = win32gui.GetCursorInfo()
@@ -76,18 +76,18 @@ class ScreenCapture:
 
     def capture_frame(self, include_cursor: bool = True) -> str | None:
         try:
-            if self._mss_sct is None and not self._using_mss:
-                self._init_mss()
+            if self._camera is None and not self._using_dxgi:
+                self._init_dxgi()
 
-            if self._using_mss and self._mss_sct:
-                img = self._capture_mss()
+            if self._using_dxgi and self._camera:
+                img = self._capture_dxgi()
             else:
                 img = self._capture_pil()
 
             if img is None:
                 return None
 
-            if include_cursor and HAS_WIN32 and not self._using_mss:
+            if include_cursor and HAS_WIN32 and not self._using_dxgi:
                 cursor_img, (cx, cy) = self._get_cursor_bitmap()
                 if cursor_img:
                     r, g, b, a = cursor_img.split()
@@ -112,16 +112,15 @@ class ScreenCapture:
             logger.error(f"Screen capture failed: {e}", exc_info=True)
             return None
 
-    def _capture_mss(self) -> Image.Image | None:
+    def _capture_dxgi(self) -> Image.Image | None:
         try:
-            monitor = self._mss_sct.monitors[1]
-            screenshot = self._mss_sct.grab(monitor)
-            return Image.frombuffer(
-                "RGB", screenshot.size, screenshot.rgb, "raw", "RGB", 0, 1,
-            )
+            frame = self._camera.grab(new_frame_only=False)
+            if frame is None:
+                return None
+            return Image.fromarray(frame, "RGB")
         except Exception as e:
-            logger.error(f"mss capture failed: {e}", exc_info=True)
-            self._using_mss = False
+            logger.error(f"DXGI capture failed: {e}", exc_info=True)
+            self._using_dxgi = False
             return self._capture_pil()
 
     def _capture_pil(self) -> Image.Image | None:
@@ -135,9 +134,9 @@ class ScreenCapture:
             return None
 
     def close(self):
-        if self._mss_sct:
+        if self._camera:
             try:
-                self._mss_sct.close()
+                self._camera.stop()
             except Exception:
                 pass
-            self._mss_sct = None
+            self._camera = None
